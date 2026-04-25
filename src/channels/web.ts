@@ -89,9 +89,20 @@ export class WebChannel implements Channel {
       cors: { origin: '*', methods: ['GET', 'POST'] },
     });
 
-    // Serve dashboard static files
+    // Serve dashboard static files. Force no-cache on the HTML shell so users
+    // always pick up UI fixes immediately (without "Empty Cache and Hard Reload").
     const publicDir = path.join(this.projectRoot, 'dashboard', 'public');
-    app.use(express.static(publicDir));
+    app.use(
+      express.static(publicDir, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+          }
+        },
+      }),
+    );
 
     // ── REST API: Projects ───────────────────────────────────────────────────
     app.use(express.json());

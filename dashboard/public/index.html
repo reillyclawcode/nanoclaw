@@ -883,24 +883,21 @@ socket.on('user_message', ({ text }) => {
 });
 
 socket.on('typing', ({ isTyping }) => {
-  if (pendingSource === 'chat') {
-    removeChatTyping();
-    if (isTyping) {
-      const makeTyping = (id) => {
-        const t = document.createElement('div');
-        t.className = 'msg typing-msg'; t.id = id;
-        t.innerHTML = `<div class="msg-who">NanoClaw</div>
-          <div class="typing-bubble">
-            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-          </div>`;
-        return t;
-      };
-      messagesEl.appendChild(makeTyping('typing-indicator'));
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      drawerMessagesEl.appendChild(makeTyping('drawer-typing-indicator'));
-      drawerMessagesEl.scrollTop = drawerMessagesEl.scrollHeight;
-    }
-  }
+  if (pendingSource !== 'chat') return;
+  if (!isTyping) { removeChatTyping(); return; }
+  const makeTyping = (id, container) => {
+    if (document.getElementById(id)) return; // already showing — don't flicker
+    const t = document.createElement('div');
+    t.className = 'msg typing-msg'; t.id = id;
+    t.innerHTML = `<div class="msg-who">NanoClaw</div>
+      <div class="typing-bubble">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div>`;
+    container.appendChild(t);
+    container.scrollTop = container.scrollHeight;
+  };
+  makeTyping('typing-indicator', messagesEl);
+  makeTyping('drawer-typing-indicator', drawerMessagesEl);
 });
 
 socket.on('assistant_message', ({ text }) => {

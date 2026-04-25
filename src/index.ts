@@ -222,6 +222,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
       logger.info({ group: group.name }, `Agent output: ${raw.length} chars`);
       if (text) {
+        // Stop the typing indicator just before delivering the message so the
+        // UI doesn't keep dots on while the container winds down to idle.
+        await channel.setTyping?.(chatJid, false);
         await channel.sendMessage(chatJid, text);
         outputSentToUser = true;
       }
