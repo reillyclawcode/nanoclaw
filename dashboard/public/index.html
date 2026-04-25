@@ -155,7 +155,22 @@
     .bubble td { padding: 7px 12px; border: 1px solid var(--border); }
     .bubble tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
     .bubble blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 8px 0; color: var(--text-mid); font-style: italic; }
-    .bubble img { max-width: 200px; max-height: 150px; border-radius: 8px; margin-top: 6px; object-fit: cover; }
+    .bubble img { max-width: 100%; max-height: 200px; border-radius: 10px; margin: 6px 0; object-fit: cover; display: block; }
+
+    /* ── Product card grid (:::cards blocks) ── */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin: 12px 0; }
+    .product-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s; }
+    .product-card:hover { border-color: var(--border-hover); }
+    .pc-img { width: 100%; height: 160px; object-fit: cover; display: block; background: rgba(255,255,255,0.04); }
+    .pc-img[style*="none"] + * { margin-top: 0; }
+    .pc-name { font-size: 14px; font-weight: 700; padding: 12px 14px 4px; line-height: 1.3; }
+    .pc-line { font-size: 12px; color: var(--text-mid); padding: 2px 14px; line-height: 1.5; }
+    .pc-line strong { color: var(--text); font-size: 14px; }
+    .pc-link { display: block; margin: 10px 14px 14px; padding: 8px 14px; background: var(--accent-dim); border: 1px solid rgba(79,142,247,0.3); border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--accent); text-decoration: none; text-align: center; transition: background .15s; }
+    .pc-link:hover { background: rgba(79,142,247,0.25); }
+
+    /* Standalone images in markdown */
+    .md-img { max-width: 100%; max-height: 320px; border-radius: 10px; margin: 8px 0; object-fit: contain; display: block; }
 
     /* ── Input bar ── */
     .input-bar { padding: 14px 20px 18px; flex-shrink: 0; border-top: 1px solid var(--border); }
@@ -1609,10 +1624,60 @@ function escHtml(t) {
 }
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
+// Uses a slot/placeholder approach so URLs are never HTML-escaped before use.
 function renderMarkdown(raw) {
-  let t = escHtml(raw);
-  t = t.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`);
-  t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  const slots = [];
+  const slot = (html) => { const id = `\x00${slots.length}\x00`; slots.push(html); return id; };
+  const restore = (t) => slots.reduce((s, h, i) => s.split(`\x00${i}\x00`).join(h), t);
+
+  let t = raw;
+
+  // 1. Fenced code blocks (verbatim — escape their content)
+  t = t.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) =>
+    slot(`<pre><code>${escHtml(c.trim())}</code></pre>`));
+  t = t.replace(/`([^`\n]+)`/g, (_, c) => slot(`<code>${escHtml(c)}</code>`));
+
+  // 2. :::cards product-grid blocks
+  // Format: :::cards\n### Name\n![alt](url)\n**$price** ⭐⭐⭐⭐⭐\nSpec line\n[View →](url)\n---\n(next card)\n:::
+  t = t.replace(/:::cards\n([\s\S]*?):::/g, (_, inner) => {
+    const cards = inner.trim().split(/^---$/m);
+    const html = cards.map(card => {
+      let cardHtml = '';
+      const lines = card.trim().split('\n');
+      for (const line of lines) {
+        const imgM  = line.match(/^!\[([^\]]*)\]\((https?:\/\/[^)]+)\)\s*$/);
+        const h3M   = line.match(/^#{1,3}\s+(.+)$/);
+        const linkM = line.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)\s*$/);
+        if (imgM) {
+          cardHtml += `<img src="${imgM[2]}" alt="${escHtml(imgM[1])}" loading="lazy" class="pc-img" onerror="this.style.display='none'">`;
+        } else if (h3M) {
+          cardHtml += `<div class="pc-name">${escHtml(h3M[1])}</div>`;
+        } else if (linkM) {
+          cardHtml += `<a href="${linkM[2]}" target="_blank" rel="noopener" class="pc-link">${escHtml(linkM[1])}</a>`;
+        } else {
+          let l = escHtml(line);
+          l = l.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          l = l.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+          if (l.trim()) cardHtml += `<div class="pc-line">${l}</div>`;
+        }
+      }
+      return `<div class="product-card">${cardHtml}</div>`;
+    }).join('');
+    return slot(`<div class="product-grid">${html}</div>`);
+  });
+
+  // 3. Standalone images (before escaping so URLs survive intact)
+  t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s"]+)\)/g, (_, alt, src) =>
+    slot(`<img src="${src}" alt="${escHtml(alt)}" loading="lazy" class="md-img" onerror="this.style.display='none'">`));
+
+  // 4. Links (before escaping so URLs survive intact)
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, text, url) =>
+    slot(`<a href="${url}" target="_blank" rel="noopener">${escHtml(text)}</a>`));
+
+  // 5. Escape remaining HTML
+  t = escHtml(t);
+
+  // 6. Text transformations (safe to run on escaped text now)
   t = t.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   t = t.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
   t = t.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
@@ -1622,7 +1687,6 @@ function renderMarkdown(raw) {
   t = t.replace(/__(.+?)__/g, '<strong>$1</strong>');
   t = t.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
   t = t.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   t = t.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
     const rows = block.trim().split('\n').filter(r => r.trim());
     let html = '<div style="overflow-x:auto"><table>';
@@ -1642,10 +1706,11 @@ function renderMarkdown(raw) {
     block = block.trim();
     if (!block) return '';
     if (/^<(h[1-6]|ul|ol|pre|table|div|hr|blockquote)/.test(block)) return block;
-    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
-    return `<p>${lines.join('<br>')}</p>`;
+    if (block.includes('\x00')) return block;
+    return `<p>${block.split('\n').map(l=>l.trim()).filter(Boolean).join('<br>')}</p>`;
   }).join('\n');
-  return t;
+
+  return restore(t);
 }
 </script>
 </body>

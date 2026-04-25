@@ -102,6 +102,18 @@
     .report-card td { padding: 7px 12px; border: 1px solid var(--border); }
     .report-card tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
     .report-card blockquote { border-left: 3px solid var(--accent); background: rgba(79,142,247,0.06); padding: 8px 14px; margin: 8px 0; color: var(--text-mid); border-radius: 0 8px 8px 0; }
+
+    /* Product card grid */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 14px 0; }
+    .product-card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s; }
+    .product-card:hover { border-color: rgba(255,255,255,0.14); }
+    .pc-img { width: 100%; height: 160px; object-fit: cover; display: block; background: rgba(255,255,255,0.04); }
+    .pc-name { font-size: 14px; font-weight: 700; padding: 12px 14px 4px; line-height: 1.3; }
+    .pc-line { font-size: 12px; color: var(--text-mid); padding: 2px 14px; line-height: 1.5; }
+    .pc-line strong { color: var(--text); font-size: 14px; }
+    .pc-link { display: block; margin: 10px 14px 14px; padding: 8px 14px; background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.3); border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--accent); text-decoration: none; text-align: center; transition: background .15s; }
+    .pc-link:hover { background: rgba(79,142,247,0.2); }
+    .md-img { max-width: 100%; max-height: 360px; border-radius: 10px; margin: 8px 0; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -154,41 +166,49 @@ function escHtml(t) {
 }
 
 function renderMarkdown(raw) {
-  let t = escHtml(raw);
-  t = t.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`);
-  t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  t = t.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  t = t.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
-  t = t.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
-  t = t.replace(/^---+$/gm, '<hr>');
-  t = t.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  t = t.replace(/__(.+?)__/g, '<strong>$1</strong>');
-  t = t.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-  t = t.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  t = t.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
-    const rows = block.trim().split('\n').filter(r => r.trim());
-    let html = '<div style="overflow-x:auto"><table>';
-    rows.forEach((row, i) => {
-      if (/^\|[-| :]+\|$/.test(row.trim())) return;
-      const cells = row.split('|').slice(1,-1).map(c=>c.trim());
-      const tag = i === 0 ? 'th' : 'td';
-      html += `<tr>${cells.map(c=>`<${tag}>${c}</${tag}>`).join('')}</tr>`;
-    });
-    return html + '</table></div>';
+  const slots = [];
+  const slot = (html) => { const id = `\x00${slots.length}\x00`; slots.push(html); return id; };
+  const restore = (t) => slots.reduce((s, h, i) => s.split(`\x00${i}\x00`).join(h), t);
+  let t = raw;
+  t = t.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) => slot(`<pre><code>${escHtml(c.trim())}</code></pre>`));
+  t = t.replace(/`([^`\n]+)`/g, (_, c) => slot(`<code>${escHtml(c)}</code>`));
+  t = t.replace(/:::cards\n([\s\S]*?):::/g, (_, inner) => {
+    const cards = inner.trim().split(/^---$/m);
+    const html = cards.map(card => {
+      let cardHtml = '';
+      for (const line of card.trim().split('\n')) {
+        const imgM  = line.match(/^!\[([^\]]*)\]\((https?:\/\/[^)]+)\)\s*$/);
+        const h3M   = line.match(/^#{1,3}\s+(.+)$/);
+        const linkM = line.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)\s*$/);
+        if (imgM)  cardHtml += `<img src="${imgM[2]}" alt="${escHtml(imgM[1])}" loading="lazy" class="pc-img" onerror="this.style.display='none'">`;
+        else if (h3M)  cardHtml += `<div class="pc-name">${escHtml(h3M[1])}</div>`;
+        else if (linkM) cardHtml += `<a href="${linkM[2]}" target="_blank" rel="noopener" class="pc-link">${escHtml(linkM[1])}</a>`;
+        else { let l = escHtml(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>'); if(l.trim()) cardHtml += `<div class="pc-line">${l}</div>`; }
+      }
+      return `<div class="product-card">${cardHtml}</div>`;
+    }).join('');
+    return slot(`<div class="product-grid">${html}</div>`);
   });
-  t = t.replace(/^[ \t]*[-*] (.+)$/gm, '<li>$1</li>');
-  t = t.replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
-  t = t.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-  const blocks = t.split(/\n{2,}/);
-  t = blocks.map(block => {
-    block = block.trim();
-    if (!block) return '';
-    if (/^<(h[1-6]|ul|ol|pre|table|div|hr|blockquote)/.test(block)) return block;
+  t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s"]+)\)/g, (_, alt, src) => slot(`<img src="${src}" alt="${escHtml(alt)}" loading="lazy" class="md-img" onerror="this.style.display='none'">`));
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, text, url) => slot(`<a href="${url}" target="_blank" rel="noopener">${escHtml(text)}</a>`));
+  t = escHtml(t);
+  t = t.replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  t = t.replace(/^---+$/gm,'<hr>');
+  t = t.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/__(.+?)__/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  t = t.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
+  t = t.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
+    const rows = block.trim().split('\n').filter(r=>r.trim());
+    let html = '<div style="overflow-x:auto"><table>';
+    rows.forEach((row,i) => { if(/^\|[-| :]+\|$/.test(row.trim())) return; const cells=row.split('|').slice(1,-1).map(c=>c.trim()); const tag=i===0?'th':'td'; html+=`<tr>${cells.map(c=>`<${tag}>${c}</${tag}>`).join('')}</tr>`; });
+    return html+'</table></div>';
+  });
+  t = t.replace(/^[ \t]*[-*] (.+)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`).replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+  t = t.split(/\n{2,}/).map(block => {
+    block = block.trim(); if(!block) return '';
+    if(/^<(h[1-6]|ul|ol|pre|table|div|hr|blockquote)/.test(block)||block.includes('\x00')) return block;
     return `<p>${block.split('\n').map(l=>l.trim()).filter(Boolean).join('<br>')}</p>`;
   }).join('\n');
-  return t;
+  return restore(t);
 }
 
 async function init() {
