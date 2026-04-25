@@ -836,7 +836,7 @@ unInput.addEventListener('keydown', e => { if (e.key === 'Enter') pwInput.focus(
 // ── Custom CSS ────────────────────────────────────────────────────────────────
 async function loadCustomCss() {
   try {
-    const res = await fetch('/api/dashboard-css', { cache: 'no-store' });
+    const res = await fetch('/api/dashboard-css', { cache: 'no-store', headers: { 'ngrok-skip-browser-warning': '1' } });
     if (res.ok) document.getElementById('custom-css').textContent = await res.text();
   } catch {}
 }
@@ -844,7 +844,7 @@ socket.on('dashboard_css_updated', loadCustomCss);
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function apiRequest(method, path, body) {
-  const opts = { method, headers: { 'X-Dashboard-Password': dashPassword, 'Content-Type': 'application/json' } };
+  const opts = { method, headers: { 'X-Dashboard-Password': dashPassword, 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' } };
   if (body !== null && body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
   if (!res.ok) throw new Error(await res.text());
@@ -1316,7 +1316,7 @@ fileInput.addEventListener('change', async () => {
   try {
     const fd = new FormData();
     fd.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', headers: { 'X-Dashboard-Password': dashPassword }, body: fd });
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'X-Dashboard-Password': dashPassword, 'ngrok-skip-browser-warning': '1' }, body: fd });
     if (!res.ok) throw new Error(await res.text());
     const { url, name, mime } = await res.json();
     pendingFileUpload = { source, url, name, mime };

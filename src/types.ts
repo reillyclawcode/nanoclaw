@@ -89,7 +89,10 @@ export interface Channel {
   // Optional: typing indicator. Channels that support it implement it.
   setTyping?(jid: string, isTyping: boolean): Promise<void>;
   // Optional: forward tool-use events to connected UIs.
-  sendToolEvent?(jid: string, event: { tool: string; input: unknown; id?: string }): Promise<void>;
+  sendToolEvent?(
+    jid: string,
+    event: { tool: string; input: unknown; id?: string },
+  ): Promise<void>;
   // Optional: sync group/chat names from the platform.
   syncGroups?(force: boolean): Promise<void>;
 }

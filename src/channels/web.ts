@@ -31,9 +31,9 @@ const CHAT_MAX_MSGS = 500;
 const UPLOAD_MAX_MB = 10;
 
 // ── Auth rate limiter ────────────────────────────────────────────────────────
-const MAX_ATTEMPTS = 5;       // failures before lockout
-const ATTEMPT_WINDOW_MS = 5 * 60 * 1000;   // 5-minute counting window
-const LOCKOUT_MS = 15 * 60 * 1000;         // 15-minute lockout
+const MAX_ATTEMPTS = 5; // failures before lockout
+const ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5-minute counting window
+const LOCKOUT_MS = 15 * 60 * 1000; // 15-minute lockout
 
 interface AttemptRecord {
   count: number;
@@ -42,7 +42,10 @@ interface AttemptRecord {
 }
 const authAttempts = new Map<string, AttemptRecord>();
 
-function getForwardedIp(headers: Record<string, string | string[] | undefined>, fallback: string): string {
+function getForwardedIp(
+  headers: Record<string, string | string[] | undefined>,
+  fallback: string,
+): string {
   const xff = headers['x-forwarded-for'];
   if (xff) return (Array.isArray(xff) ? xff[0] : xff).split(',')[0].trim();
   return fallback;
@@ -52,12 +55,18 @@ function checkRateLimit(ip: string): { blocked: boolean; secondsLeft: number } {
   const now = Date.now();
   const rec = authAttempts.get(ip);
   if (rec?.lockedUntil && now < rec.lockedUntil) {
-    return { blocked: true, secondsLeft: Math.ceil((rec.lockedUntil - now) / 1000) };
+    return {
+      blocked: true,
+      secondsLeft: Math.ceil((rec.lockedUntil - now) / 1000),
+    };
   }
   return { blocked: false, secondsLeft: 0 };
 }
 
-function recordFailedAttempt(ip: string): { blocked: boolean; secondsLeft: number } {
+function recordFailedAttempt(ip: string): {
+  blocked: boolean;
+  secondsLeft: number;
+} {
   const now = Date.now();
   let rec = authAttempts.get(ip);
   if (!rec || now - rec.windowStart > ATTEMPT_WINDOW_MS) {
@@ -78,13 +87,17 @@ function clearAttempts(ip: string): void {
 }
 
 // Clean up stale entries every 30 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, rec] of authAttempts.entries()) {
-    if (!rec.lockedUntil && now - rec.windowStart > ATTEMPT_WINDOW_MS) authAttempts.delete(ip);
-    if (rec.lockedUntil && now > rec.lockedUntil) authAttempts.delete(ip);
-  }
-}, 30 * 60 * 1000);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [ip, rec] of authAttempts.entries()) {
+      if (!rec.lockedUntil && now - rec.windowStart > ATTEMPT_WINDOW_MS)
+        authAttempts.delete(ip);
+      if (rec.lockedUntil && now > rec.lockedUntil) authAttempts.delete(ip);
+    }
+  },
+  30 * 60 * 1000,
+);
 
 // ── Multi-user helpers ───────────────────────────────────────────────────────
 
@@ -175,8 +188,14 @@ export class WebChannel implements Channel {
 
     const app = express();
     const httpServer = createServer(app);
-    const allowedOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void): void => {
-      if (!origin) { callback(null, true); return; } // same-origin / server-side
+    const allowedOrigin = (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ): void => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      } // same-origin / server-side
       const trusted = [
         /^https?:\/\/localhost(:\d+)?$/,
         /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -193,7 +212,11 @@ export class WebChannel implements Channel {
       }
     };
     this.io = new SocketIOServer(httpServer, {
-      cors: { origin: allowedOrigin, methods: ['GET', 'POST', 'PUT', 'DELETE'], credentials: true },
+      cors: {
+        origin: allowedOrigin,
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        credentials: true,
+      },
     });
 
     // ── Static files ─────────────────────────────────────────────────────────
@@ -319,18 +342,31 @@ export class WebChannel implements Channel {
       res: express.Response,
       next: express.NextFunction,
     ): void => {
-      const ip = getForwardedIp(req.headers as Record<string, string | string[] | undefined>, req.ip ?? 'unknown');
+      const ip = getForwardedIp(
+        req.headers as Record<string, string | string[] | undefined>,
+        req.ip ?? 'unknown',
+      );
       const { blocked, secondsLeft } = checkRateLimit(ip);
       if (blocked) {
-        logger.warn({ ip }, `Web Dashboard: REST blocked (rate limit, ${secondsLeft}s remaining)`);
-        res.status(429).json({ error: `Too many failed attempts. Try again in ${secondsLeft} seconds.` });
+        logger.warn(
+          { ip },
+          `Web Dashboard: REST blocked (rate limit, ${secondsLeft}s remaining)`,
+        );
+        res
+          .status(429)
+          .json({
+            error: `Too many failed attempts. Try again in ${secondsLeft} seconds.`,
+          });
         return;
       }
       const pw = req.headers['x-dashboard-password'] as string;
       const valid = Object.values(this.users).some((p) => p === pw);
       if (!valid) {
         const result = recordFailedAttempt(ip);
-        logger.warn({ ip, blocked: result.blocked }, 'Web Dashboard: REST auth failed');
+        logger.warn(
+          { ip, blocked: result.blocked },
+          'Web Dashboard: REST auth failed',
+        );
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
@@ -567,15 +603,23 @@ export class WebChannel implements Channel {
         'auth',
         ({ password, username }: { password: string; username?: string }) => {
           const ip = getForwardedIp(
-            socket.handshake.headers as Record<string, string | string[] | undefined>,
+            socket.handshake.headers as Record<
+              string,
+              string | string[] | undefined
+            >,
             socket.handshake.address,
           );
 
           // Rate-limit check
           const { blocked, secondsLeft } = checkRateLimit(ip);
           if (blocked) {
-            logger.warn({ ip }, `Web Dashboard: socket auth blocked (rate limit, ${secondsLeft}s remaining)`);
-            socket.emit('auth_fail', { error: `Too many failed attempts. Try again in ${secondsLeft} seconds.` });
+            logger.warn(
+              { ip },
+              `Web Dashboard: socket auth blocked (rate limit, ${secondsLeft}s remaining)`,
+            );
+            socket.emit('auth_fail', {
+              error: `Too many failed attempts. Try again in ${secondsLeft} seconds.`,
+            });
             return;
           }
 
@@ -605,7 +649,15 @@ export class WebChannel implements Channel {
               ? `Too many failed attempts. Try again in ${result.secondsLeft} seconds.`
               : 'Invalid password';
             socket.emit('auth_fail', { error: msg });
-            logger.warn({ socketId: socket.id, ip, blocked: result.blocked, username: username ?? '(none)' }, 'Web Dashboard: auth failed');
+            logger.warn(
+              {
+                socketId: socket.id,
+                ip,
+                blocked: result.blocked,
+                username: username ?? '(none)',
+              },
+              'Web Dashboard: auth failed',
+            );
           }
         },
       );

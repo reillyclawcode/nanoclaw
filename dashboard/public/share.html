@@ -230,7 +230,7 @@ async function init() {
   if (!key) { showError(); return; }
 
   try {
-    const res = await fetch(`/api/public/projects/${encodeURIComponent(key)}`);
+    const res = await fetch(`/api/public/projects/${encodeURIComponent(key)}`, { headers: { 'ngrok-skip-browser-warning': '1' } });
     if (!res.ok) { showError(); return; }
     const { project, report } = await res.json();
 
