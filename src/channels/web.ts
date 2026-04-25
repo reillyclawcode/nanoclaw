@@ -183,15 +183,15 @@ export class WebChannel implements Channel {
     const writeJson = (file: string, data: unknown): void =>
       fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-    const loadChat = (): ChatMsg[] =>
-      loadJson<ChatMsg[]>(chatFile, []);
+    const loadChat = (): ChatMsg[] => loadJson<ChatMsg[]>(chatFile, []);
     const appendChat = (msg: ChatMsg): void => {
       const history = loadChat();
       history.push(msg);
       fs.writeFileSync(chatFile, JSON.stringify(history.slice(-CHAT_MAX_MSGS)));
     };
 
-    const loadReports = () => loadJson<Record<string, unknown>>(reportsFile, {});
+    const loadReports = () =>
+      loadJson<Record<string, unknown>>(reportsFile, {});
     const saveReport = (key: string, data: unknown): void => {
       const reports = loadReports();
       reports[key] = data;
@@ -200,7 +200,8 @@ export class WebChannel implements Channel {
         this.io?.to(sid).emit('report_updated', { key });
     };
 
-    const loadProjects = () => loadJson<object[]>(projectsFile, DEFAULT_PROJECTS);
+    const loadProjects = () =>
+      loadJson<object[]>(projectsFile, DEFAULT_PROJECTS);
     const saveProjects = (projects: object[]): void => {
       writeJson(projectsFile, projects);
       for (const sid of this.authedSocketIds)
@@ -208,7 +209,11 @@ export class WebChannel implements Channel {
     };
 
     const loadCustomCss = (): string => {
-      try { return fs.readFileSync(customCssFile, 'utf8'); } catch { return ''; }
+      try {
+        return fs.readFileSync(customCssFile, 'utf8');
+      } catch {
+        return '';
+      }
     };
     const saveCustomCss = (css: string): void => {
       fs.writeFileSync(customCssFile, css);
@@ -220,7 +225,8 @@ export class WebChannel implements Channel {
     const trackAnalytic = (type: 'sent' | 'received'): void => {
       const date = new Date().toISOString().slice(0, 10);
       const data = loadJson<Record<string, { sent: number; received: number }>>(
-        analyticsFile, {},
+        analyticsFile,
+        {},
       );
       if (!data[date]) data[date] = { sent: 0, received: 0 };
       data[date][type]++;
@@ -300,13 +306,18 @@ export class WebChannel implements Channel {
     app.put('/api/projects/:key', requireRestAuth, (req, res) => {
       const projects = loadProjects() as any[];
       const i = projects.findIndex((p: any) => p.key === req.params.key);
-      if (i < 0) { res.status(404).json({ error: 'Not found' }); return; }
+      if (i < 0) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
       projects[i] = { ...req.body, key: req.params.key };
       saveProjects(projects);
       res.json(projects[i]);
     });
     app.delete('/api/projects/:key', requireRestAuth, (req, res) => {
-      saveProjects((loadProjects() as any[]).filter((p: any) => p.key !== req.params.key));
+      saveProjects(
+        (loadProjects() as any[]).filter((p: any) => p.key !== req.params.key),
+      );
       res.json({ ok: true });
     });
 
@@ -315,7 +326,9 @@ export class WebChannel implements Channel {
       res.json(loadReports());
     });
     app.post('/api/project-reports/:key', requireRestAuth, (req, res) => {
-      const key = Array.isArray(req.params.key) ? req.params.key[0] : req.params.key;
+      const key = Array.isArray(req.params.key)
+        ? req.params.key[0]
+        : req.params.key;
       saveReport(key, req.body);
       res.json({ ok: true });
     });
@@ -325,7 +338,9 @@ export class WebChannel implements Channel {
       res.json(loadChat());
     });
     app.delete('/api/chat', requireRestAuth, (_req, res) => {
-      try { fs.writeFileSync(chatFile, '[]'); } catch {}
+      try {
+        fs.writeFileSync(chatFile, '[]');
+      } catch {}
       res.json({ ok: true });
     });
 
@@ -337,7 +352,8 @@ export class WebChannel implements Channel {
     // Archive current chat as a new named thread
     app.post('/api/threads', requireRestAuth, (req, res) => {
       const title = req.body?.title || `Thread ${Date.now()}`;
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const id =
+        Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const now = new Date().toISOString();
       // Save current chat to new thread file
       const current = loadChat();
@@ -359,7 +375,10 @@ export class WebChannel implements Channel {
       const id = req.params.id as string;
       const list = loadThreadsIndex();
       const t = list.find((x) => x.id === id);
-      if (!t) { res.status(404).json({ error: 'Not found' }); return; }
+      if (!t) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
       if (req.body?.title) t.title = req.body.title;
       t.updatedAt = new Date().toISOString();
       saveThreadsIndex(list);
@@ -368,7 +387,9 @@ export class WebChannel implements Channel {
 
     app.delete('/api/threads/:id', requireRestAuth, (req, res) => {
       const id = req.params.id as string;
-      try { fs.unlinkSync(threadFile(id)); } catch {}
+      try {
+        fs.unlinkSync(threadFile(id));
+      } catch {}
       saveThreadsIndex(loadThreadsIndex().filter((x) => x.id !== id));
       res.json({ ok: true });
     });
@@ -379,8 +400,17 @@ export class WebChannel implements Channel {
     });
 
     // ── Kanban API ────────────────────────────────────────────────────────────
-    interface KanbanCard { id: string; title: string; body?: string; color?: string; }
-    interface KanbanBoard { todo: KanbanCard[]; inprogress: KanbanCard[]; done: KanbanCard[]; }
+    interface KanbanCard {
+      id: string;
+      title: string;
+      body?: string;
+      color?: string;
+    }
+    interface KanbanBoard {
+      todo: KanbanCard[];
+      inprogress: KanbanCard[];
+      done: KanbanCard[];
+    }
     const DEFAULT_BOARD: KanbanBoard = { todo: [], inprogress: [], done: [] };
 
     app.get('/api/kanban', requireRestAuth, (_req, res) => {
@@ -403,7 +433,8 @@ export class WebChannel implements Channel {
       res.type('text/css').send(loadCustomCss());
     });
     app.put('/api/dashboard-css', requireRestAuth, (req, res) => {
-      const css = typeof req.body === 'string' ? req.body : (req.body?.css ?? '');
+      const css =
+        typeof req.body === 'string' ? req.body : (req.body?.css ?? '');
       saveCustomCss(css);
       res.json({ ok: true, bytes: css.length });
     });
@@ -417,6 +448,29 @@ export class WebChannel implements Channel {
       },
     );
 
+    // ── Public read-only project share ────────────────────────────────────────
+    // /api/public/projects/:key — no auth required, returns project + latest report
+    app.get('/api/public/projects/:key', (req, res) => {
+      const key = Array.isArray(req.params.key)
+        ? req.params.key[0]
+        : req.params.key;
+      const projects = loadProjects() as any[];
+      const project = projects.find((p: any) => p.key === key);
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
+      const reports = loadReports();
+      const report = (reports[key] as any) || null;
+      res.json({ project, report });
+    });
+
+    // /p/:key — serves the standalone public share page
+    app.get('/p/:key', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.sendFile(path.join(publicDir, 'share.html'));
+    });
+
     // ── SPA fallback ──────────────────────────────────────────────────────────
     app.get('/{*path}', (_req, res) => {
       res.sendFile(path.join(publicDir, 'index.html'));
@@ -426,72 +480,97 @@ export class WebChannel implements Channel {
     this.io.on('connection', (socket) => {
       logger.debug({ socketId: socket.id }, 'Web Dashboard: client connected');
 
-      socket.on('auth', ({ password, username }: { password: string; username?: string }) => {
-        // Support both: single-password (legacy) and username+password (multi-user)
-        let authedUser: string | null = null;
-        if (username && this.users[username] === password) {
-          authedUser = username;
-        } else {
-          // Legacy: match by password alone
-          const found = Object.entries(this.users).find(([, p]) => p === password);
-          if (found) authedUser = found[0];
-        }
+      socket.on(
+        'auth',
+        ({ password, username }: { password: string; username?: string }) => {
+          // Support both: single-password (legacy) and username+password (multi-user)
+          let authedUser: string | null = null;
+          if (username && this.users[username] === password) {
+            authedUser = username;
+          } else {
+            // Legacy: match by password alone
+            const found = Object.entries(this.users).find(
+              ([, p]) => p === password,
+            );
+            if (found) authedUser = found[0];
+          }
 
-        if (authedUser) {
-          this.authedSockets.set(socket.id, authedUser);
-          socket.emit('auth_ok', { username: authedUser });
-          logger.info({ socketId: socket.id, user: authedUser }, 'Web Dashboard: authenticated');
-        } else {
-          socket.emit('auth_fail', { error: 'Invalid password' });
-          logger.warn({ socketId: socket.id }, 'Web Dashboard: auth failed');
-        }
-      });
+          if (authedUser) {
+            this.authedSockets.set(socket.id, authedUser);
+            socket.emit('auth_ok', { username: authedUser });
+            logger.info(
+              { socketId: socket.id, user: authedUser },
+              'Web Dashboard: authenticated',
+            );
+          } else {
+            socket.emit('auth_fail', { error: 'Invalid password' });
+            logger.warn({ socketId: socket.id }, 'Web Dashboard: auth failed');
+          }
+        },
+      );
 
-      socket.on('message', ({ text, imageUrl }: { text: string; imageUrl?: string }) => {
-        if (!this.authedSockets.has(socket.id)) {
-          socket.emit('error_msg', { message: 'Not authenticated' });
-          return;
-        }
-        if (!text?.trim() && !imageUrl) return;
+      socket.on(
+        'message',
+        ({ text, imageUrl }: { text: string; imageUrl?: string }) => {
+          if (!this.authedSockets.has(socket.id)) {
+            socket.emit('error_msg', { message: 'Not authenticated' });
+            return;
+          }
+          if (!text?.trim() && !imageUrl) return;
 
-        const who = this.authedSockets.get(socket.id) ?? WEB_SENDER;
-        // Combine text + optional image reference
-        let content = text?.trim() || '';
-        if (imageUrl) {
-          content = content
-            ? `${content}\n\n[Attached image: ${imageUrl}]`
-            : `[Attached image: ${imageUrl}]`;
-        }
+          const who = this.authedSockets.get(socket.id) ?? WEB_SENDER;
+          // Combine text + optional image reference
+          let content = text?.trim() || '';
+          if (imageUrl) {
+            content = content
+              ? `${content}\n\n[Attached image: ${imageUrl}]`
+              : `[Attached image: ${imageUrl}]`;
+          }
 
-        const msg: NewMessage = {
-          id: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          chat_jid: WEB_JID,
-          sender: WEB_SENDER,
-          sender_name: who,
-          content,
-          timestamp: new Date().toISOString(),
-          is_from_me: false,
-        };
+          const msg: NewMessage = {
+            id: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            chat_jid: WEB_JID,
+            sender: WEB_SENDER,
+            sender_name: who,
+            content,
+            timestamp: new Date().toISOString(),
+            is_from_me: false,
+          };
 
-        this.opts.onChatMetadata(WEB_JID, msg.timestamp, 'Web Dashboard', 'web', false);
-        this.opts.onMessage(WEB_JID, msg);
+          this.opts.onChatMetadata(
+            WEB_JID,
+            msg.timestamp,
+            'Web Dashboard',
+            'web',
+            false,
+          );
+          this.opts.onMessage(WEB_JID, msg);
 
-        socket.emit('user_message', { text: content, timestamp: Date.now() });
-        appendChat({ role: 'user', who, text: content, ts: Date.now() });
-        trackAnalytic('sent');
+          socket.emit('user_message', { text: content, timestamp: Date.now() });
+          appendChat({ role: 'user', who, text: content, ts: Date.now() });
+          trackAnalytic('sent');
 
-        logger.debug({ preview: content.slice(0, 80) }, 'Web Dashboard: message received');
-      });
+          logger.debug(
+            { preview: content.slice(0, 80) },
+            'Web Dashboard: message received',
+          );
+        },
+      );
 
       socket.on('disconnect', () => {
         this.authedSockets.delete(socket.id);
-        logger.debug({ socketId: socket.id }, 'Web Dashboard: client disconnected');
+        logger.debug(
+          { socketId: socket.id },
+          'Web Dashboard: client disconnected',
+        );
       });
     });
 
     await new Promise<void>((resolve, reject) => {
       httpServer.listen(this.port, () => {
-        logger.info(`🌐 NanoClaw Web Dashboard → http://localhost:${this.port}`);
+        logger.info(
+          `🌐 NanoClaw Web Dashboard → http://localhost:${this.port}`,
+        );
         resolve();
       });
       httpServer.on('error', reject);
@@ -505,27 +584,42 @@ export class WebChannel implements Channel {
     const trimmed = text.trim();
     const ts = Date.now();
     for (const socketId of this.authedSocketIds) {
-      this.io.to(socketId).emit('assistant_message', { text: trimmed, timestamp: ts });
+      this.io
+        .to(socketId)
+        .emit('assistant_message', { text: trimmed, timestamp: ts });
     }
     try {
       const dataDir = path.join(this.projectRoot, 'data');
       const chatFile = path.join(dataDir, 'web-chat-history.json');
       const analyticsFile = path.join(dataDir, 'analytics.json');
       const history: any[] = (() => {
-        try { return JSON.parse(fs.readFileSync(chatFile, 'utf8')); } catch { return []; }
+        try {
+          return JSON.parse(fs.readFileSync(chatFile, 'utf8'));
+        } catch {
+          return [];
+        }
       })();
       history.push({ role: 'assistant', who: 'NanoClaw', text: trimmed, ts });
       fs.writeFileSync(chatFile, JSON.stringify(history.slice(-CHAT_MAX_MSGS)));
 
       const date = new Date().toISOString().slice(0, 10);
       const analytics: any = (() => {
-        try { return JSON.parse(fs.readFileSync(analyticsFile, 'utf8')); } catch { return {}; }
+        try {
+          return JSON.parse(fs.readFileSync(analyticsFile, 'utf8'));
+        } catch {
+          return {};
+        }
       })();
       if (!analytics[date]) analytics[date] = { sent: 0, received: 0 };
       analytics[date].received++;
       fs.writeFileSync(analyticsFile, JSON.stringify(analytics, null, 2));
-    } catch { /* non-fatal */ }
-    logger.debug({ chars: trimmed.length }, 'Web Dashboard: response delivered');
+    } catch {
+      /* non-fatal */
+    }
+    logger.debug(
+      { chars: trimmed.length },
+      'Web Dashboard: response delivered',
+    );
   }
 
   async sendToolEvent(
@@ -545,8 +639,12 @@ export class WebChannel implements Channel {
     }
   }
 
-  isConnected(): boolean { return this.connected; }
-  ownsJid(jid: string): boolean { return jid.startsWith('web:'); }
+  isConnected(): boolean {
+    return this.connected;
+  }
+  ownsJid(jid: string): boolean {
+    return jid.startsWith('web:');
+  }
 
   async disconnect(): Promise<void> {
     this.io?.close();
@@ -558,9 +656,13 @@ export class WebChannel implements Channel {
 
 const DEFAULT_PROJECTS = [
   {
-    key: 'surf', name: 'Surf Report', icon: '🏄',
-    accentBg: 'rgba(56,189,248,0.12)', nameColor: '#7dd3fc',
-    prompt: "Give me the current surf report. Include: wave height (with a short label like '3-5 ft'), wind speed and direction (e.g. '12 mph Offshore'), water temperature (e.g. '62°F'), and swell period (e.g. '14s'). Lead with a one-sentence overall rating. Then give a detailed breakdown.",
+    key: 'surf',
+    name: 'Surf Report',
+    icon: '🏄',
+    accentBg: 'rgba(56,189,248,0.12)',
+    nameColor: '#7dd3fc',
+    prompt:
+      "Give me the current surf report. Include: wave height (with a short label like '3-5 ft'), wind speed and direction (e.g. '12 mph Offshore'), water temperature (e.g. '62°F'), and swell period (e.g. '14s'). Lead with a one-sentence overall rating. Then give a detailed breakdown.",
     links: [
       { label: 'Surfline', url: 'https://www.surfline.com' },
       { label: 'Magic Seaweed', url: 'https://magicseaweed.com' },
@@ -568,16 +670,30 @@ const DEFAULT_PROJECTS = [
       { label: 'Windy', url: 'https://www.windy.com' },
     ],
     stats: [
-      { id: 'waves', label: 'Wave Height', pattern: '(\\d[\\d\\s\\-\\u2013]*(?:ft|feet))', flags: 'i' },
+      {
+        id: 'waves',
+        label: 'Wave Height',
+        pattern: '(\\d[\\d\\s\\-\\u2013]*(?:ft|feet))',
+        flags: 'i',
+      },
       { id: 'wind', label: 'Wind', pattern: '(\\d+\\s*mph)', flags: 'i' },
       { id: 'temp', label: 'Water Temp', pattern: '(\\d+°?F)', flags: 'i' },
-      { id: 'period', label: 'Swell Period', pattern: '(\\d+s(?:ec)?(?:onds?)?)', flags: 'i' },
+      {
+        id: 'period',
+        label: 'Swell Period',
+        pattern: '(\\d+s(?:ec)?(?:onds?)?)',
+        flags: 'i',
+      },
     ],
   },
   {
-    key: 'tide', name: 'Tide Chart', icon: '🌊',
-    accentBg: 'rgba(99,102,241,0.12)', nameColor: '#a5b4fc',
-    prompt: "Give me today's tide schedule. List each high and low tide with its time and height in feet. Start with the very next upcoming tide. Format as a clear list.",
+    key: 'tide',
+    name: 'Tide Chart',
+    icon: '🌊',
+    accentBg: 'rgba(99,102,241,0.12)',
+    nameColor: '#a5b4fc',
+    prompt:
+      "Give me today's tide schedule. List each high and low tide with its time and height in feet. Start with the very next upcoming tide. Format as a clear list.",
     links: [
       { label: 'NOAA Tides', url: 'https://tidesandcurrents.noaa.gov' },
       { label: 'Tides Chart', url: 'https://www.tideschart.com' },
@@ -585,9 +701,13 @@ const DEFAULT_PROJECTS = [
     stats: [],
   },
   {
-    key: 'weather', name: 'Weather', icon: '⛅',
-    accentBg: 'rgba(251,191,36,0.10)', nameColor: '#fde68a',
-    prompt: "Give me a 7-day weather forecast. For today include: conditions (e.g. 'Sunny'), high/low temperatures (e.g. '72°/58°'), wind, and UV index. Then list each of the next 6 days briefly.",
+    key: 'weather',
+    name: 'Weather',
+    icon: '⛅',
+    accentBg: 'rgba(251,191,36,0.10)',
+    nameColor: '#fde68a',
+    prompt:
+      "Give me a 7-day weather forecast. For today include: conditions (e.g. 'Sunny'), high/low temperatures (e.g. '72°/58°'), wind, and UV index. Then list each of the next 6 days briefly.",
     links: [
       { label: 'NWS Forecast', url: 'https://forecast.weather.gov' },
       { label: 'Weather.com', url: 'https://www.weather.com' },
@@ -596,9 +716,13 @@ const DEFAULT_PROJECTS = [
     stats: [],
   },
   {
-    key: 'jobs', name: 'Job Search', icon: '💼',
-    accentBg: 'rgba(52,211,153,0.10)', nameColor: '#6ee7b7',
-    prompt: "Give me a job search update. How many new relevant openings are there? How many applications are in progress? Any interviews or callbacks? What's the top recommended opportunity right now? Give a detailed breakdown.",
+    key: 'jobs',
+    name: 'Job Search',
+    icon: '💼',
+    accentBg: 'rgba(52,211,153,0.10)',
+    nameColor: '#6ee7b7',
+    prompt:
+      "Give me a job search update. How many new relevant openings are there? How many applications are in progress? Any interviews or callbacks? What's the top recommended opportunity right now? Give a detailed breakdown.",
     links: [
       { label: 'LinkedIn', url: 'https://www.linkedin.com/jobs' },
       { label: 'Indeed', url: 'https://www.indeed.com' },
@@ -615,7 +739,9 @@ registerChannel('web', (opts: ChannelOpts) => {
   const env = readEnvFile(['WEB_DASHBOARD_PASSWORD', 'WEB_USERS', 'WEB_PORT']);
   const users = parseUsers(env['WEB_USERS'], env['WEB_DASHBOARD_PASSWORD']);
   if (Object.keys(users).length === 0) {
-    logger.info('WEB_DASHBOARD_PASSWORD / WEB_USERS not set — web dashboard disabled');
+    logger.info(
+      'WEB_DASHBOARD_PASSWORD / WEB_USERS not set — web dashboard disabled',
+    );
     return null;
   }
   const port = parseInt(env['WEB_PORT'] || String(DEFAULT_PORT), 10);
