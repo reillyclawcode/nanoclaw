@@ -232,6 +232,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
       resetIdleTimer();
     }
 
+    if (result.status === 'tool_use' && result.tool) {
+      await channel.sendToolEvent?.(chatJid, {
+        tool: result.tool,
+        input: result.toolInput ?? {},
+        id: result.toolId,
+      });
+    }
+
     if (result.status === 'success') {
       queue.notifyIdle(chatJid);
     }

@@ -45,10 +45,14 @@ export interface ContainerInput {
 }
 
 export interface ContainerOutput {
-  status: 'success' | 'error';
+  status: 'success' | 'error' | 'tool_use';
   result: string | null;
   newSessionId?: string;
   error?: string;
+  // For tool_use events:
+  tool?: string;
+  toolInput?: unknown;
+  toolId?: string;
 }
 
 interface VolumeMount {

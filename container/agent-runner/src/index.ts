@@ -30,10 +30,13 @@ interface ContainerInput {
 }
 
 interface ContainerOutput {
-  status: 'success' | 'error';
+  status: 'success' | 'error' | 'tool_use';
   result: string | null;
   newSessionId?: string;
   error?: string;
+  tool?: string;
+  toolInput?: unknown;
+  toolId?: string;
 }
 
 interface SessionEntry {
@@ -435,6 +438,23 @@ async function runQuery(
 
     if (message.type === 'assistant' && 'uuid' in message) {
       lastAssistantUuid = (message as { uuid: string }).uuid;
+      // Extract and emit tool_use content blocks for real-time tool visibility
+      const content = (message as { content?: unknown[] }).content;
+      if (Array.isArray(content)) {
+        for (const block of content) {
+          const b = block as { type?: string; name?: string; input?: unknown; id?: string };
+          if (b.type === 'tool_use') {
+            writeOutput({
+              status: 'tool_use',
+              tool: b.name || 'unknown',
+              toolInput: b.input ?? {},
+              toolId: b.id,
+              result: null,
+              newSessionId,
+            });
+          }
+        }
+      }
     }
 
     if (message.type === 'system' && message.subtype === 'init') {
