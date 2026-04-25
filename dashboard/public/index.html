@@ -264,6 +264,20 @@
     .btn-danger { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.25); border-radius: 9px; color: var(--danger); cursor: pointer; padding: 10px 18px; font-size: 13px; font-weight: 600; font-family: inherit; transition: all .15s; }
     .btn-danger:hover { background: rgba(224,92,92,0.18); }
 
+    /* ══ HAMBURGER / MOBILE NAV ══ */
+    .hamburger {
+      display: none; background: none; border: none; cursor: pointer;
+      flex-direction: column; gap: 5px; padding: 4px 6px; border-radius: 7px;
+      transition: background .15s; flex-shrink: 0;
+    }
+    .hamburger:hover { background: rgba(255,255,255,0.06); }
+    .hamburger span { display: block; width: 18px; height: 2px; background: var(--text-mid); border-radius: 2px; transition: all .2s; }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 298; backdrop-filter: blur(2px); }
+    .sidebar-backdrop.visible { display: block; }
+
     /* ══ CHAT DRAWER ══ */
     #chat-drawer { position: fixed; top: 52px; right: 0; width: 380px; height: calc(100% - 52px); background: var(--sidebar-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); z-index: 200; box-shadow: -24px 0 60px rgba(0,0,0,0.45); }
     #chat-drawer.open { transform: translateX(0); }
@@ -333,6 +347,76 @@
     .thread-item .ti-del { background: none; border: none; color: transparent; cursor: pointer; font-size: 13px; padding: 0 3px; border-radius: 4px; transition: color .15s; }
     .thread-item:hover .ti-del { color: var(--text-dim); }
     .thread-item:hover .ti-del:hover { color: var(--danger); }
+    /* ══ RESPONSIVE — TABLET / PHONE ══ */
+    @media (max-width: 768px) {
+      /* Grid: sidebar becomes overlay, content is full-width */
+      #app.visible { grid-template-columns: 1fr; }
+      .hamburger { display: flex; }
+      .sidebar {
+        position: fixed; left: 0; top: 52px;
+        height: calc(100% - 52px); z-index: 299;
+        transform: translateX(-100%);
+        transition: transform .28s cubic-bezier(.4,0,.2,1);
+        width: 240px; box-shadow: 8px 0 40px rgba(0,0,0,0.55);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .content-area { grid-column: 1; }
+      /* Header */
+      .app-header { padding: 0 12px; gap: 8px; }
+      .app-header-sep { display: none; }
+      .conn-status { gap: 5px; }
+      #conn-label { display: none; }
+      .user-badge { display: none !important; }
+      .hdr-btn { padding: 5px 9px; font-size: 10px; }
+      /* Hide less-critical header buttons on narrow screens */
+      .hdr-desktop { display: none; }
+      /* Chat drawer: full-width on mobile */
+      #chat-drawer { width: 100%; box-shadow: none; border-left: none; border-top: 1px solid var(--border); }
+      /* Modals: sheet from bottom */
+      .modal-overlay { align-items: flex-end; padding-top: 0; }
+      .modal-card { width: 100%; max-width: 100%; border-radius: 20px 20px 0 0; max-height: 92vh; }
+      /* Projects */
+      .project-page { padding: 20px 16px 30px; gap: 16px; }
+      .project-header { flex-direction: column; gap: 12px; }
+      .project-actions { display: flex; gap: 8px; width: 100%; }
+      .project-actions .hdr-btn,
+      .project-actions .refresh-btn { flex: 1; justify-content: center; }
+      .project-name { font-size: 19px; }
+      .stat-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      /* Product cards */
+      .product-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      /* Kanban: horizontal scroll */
+      .kanban-board { grid-template-columns: repeat(3, minmax(240px, 1fr)); overflow-x: auto; padding-bottom: 12px; }
+      /* Analytics */
+      .analytics-stats { grid-template-columns: repeat(2, 1fr); }
+      #view-analytics { padding: 20px 16px; }
+      /* Messages */
+      .messages { padding: 14px 16px; gap: 14px; }
+      .msg { max-width: 90%; }
+      /* Input bar */
+      .input-bar { padding: 10px 14px 16px; }
+      .send-btn { width: 40px; height: 40px; }
+      .input-action-btn { font-size: 18px; padding: 6px; }
+      /* Login */
+      .login-card { width: calc(100vw - 32px); max-width: 380px; padding: 36px 28px; }
+    }
+
+    /* ══ RESPONSIVE — SMALL PHONE ══ */
+    @media (max-width: 480px) {
+      .product-grid { grid-template-columns: 1fr; }
+      .stat-cards { grid-template-columns: 1fr 1fr; }
+      .kanban-board { grid-template-columns: repeat(3, minmax(200px, 1fr)); }
+      .project-name { font-size: 17px; }
+      .project-icon-wrap { width: 42px; height: 42px; font-size: 20px; }
+      .stat-value { font-size: 18px; }
+      .bubble { font-size: 13.5px; padding: 11px 14px; }
+      .project-body { padding: 18px 16px; }
+      #view-analytics { padding: 16px 12px; }
+      .analytics-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .analytics-stat-val { font-size: 22px; }
+      .kanban-header { padding: 16px 16px 12px; }
+    }
+
   </style>
   <style id="custom-css"></style>
 </head>
@@ -355,6 +439,9 @@
 <!-- ── APP ── -->
 <div id="app">
   <header class="app-header">
+    <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="app-header-wordmark">Nano<em>Claw</em></div>
     <div class="app-header-sep"></div>
     <div class="conn-status">
@@ -363,14 +450,16 @@
     </div>
     <div class="header-spacer"></div>
     <button id="chat-toggle-btn" onclick="toggleDrawer()">💬 Chat</button>
-    <button class="hdr-icon-btn" id="notif-btn" onclick="toggleNotifications()" title="Notifications">🔔</button>
-    <button class="hdr-btn" onclick="showExportModal()">Export</button>
+    <button class="hdr-icon-btn hdr-desktop" id="notif-btn" onclick="toggleNotifications()" title="Notifications">🔔</button>
+    <button class="hdr-btn hdr-desktop" onclick="showExportModal()">Export</button>
     <button class="hdr-btn" id="clear-btn">Clear</button>
     <div class="user-badge" id="user-badge" style="display:none"><div class="user-dot"></div><span id="user-label">user</span></div>
     <button class="hdr-btn" id="logout-btn">Logout</button>
   </header>
 
-  <nav class="sidebar">
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Workspace</div>
       <div class="sidebar-item" id="nav-chat" onclick="showView('chat')">
@@ -643,6 +732,33 @@ let kanbanEditingId   = null;
 const CHAT_MAX_MSGS = 120;
 let chatMessages = [];
 
+// ── Mobile sidebar ────────────────────────────────────────────────────────────
+const isMobile = () => window.innerWidth <= 768;
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('hamburger-btn').classList.add('open');
+  document.getElementById('sidebar-backdrop').classList.add('visible');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('hamburger-btn').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('visible');
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.contains('open') ? closeSidebar() : openSidebar();
+}
+
+// Close sidebar on swipe-left (mobile)
+(function() {
+  let startX = 0;
+  document.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (dx < -60 && document.getElementById('sidebar').classList.contains('open')) closeSidebar();
+  }, { passive: true });
+})();
+
 // ── Connection ────────────────────────────────────────────────────────────────
 socket.on('connect',    () => { connDot.classList.remove('offline'); connLabel.textContent = 'Connected'; });
 socket.on('disconnect', () => { connDot.classList.add('offline');    connLabel.textContent = 'Disconnected'; });
@@ -769,6 +885,9 @@ function showView(name) {
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById('nav-' + name);
   if (navEl) navEl.classList.add('active');
+
+  // Close sidebar on mobile after navigation
+  if (isMobile()) closeSidebar();
 
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
