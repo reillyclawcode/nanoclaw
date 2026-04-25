@@ -441,6 +441,7 @@
     #chat-toggle-btn:hover { background: rgba(79,142,247,0.18); }
     #chat-toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   </style>
+  <style id="custom-css"></style>
 </head>
 <body>
 
@@ -687,15 +688,24 @@ function doLogin() {
   socket.emit('auth', { password: pw });
 }
 
+async function loadCustomCss() {
+  try {
+    const res = await fetch('/api/dashboard-css', { cache: 'no-store' });
+    if (res.ok) document.getElementById('custom-css').textContent = await res.text();
+  } catch { /* non-fatal */ }
+}
+
 socket.on('auth_ok', async () => {
   await fetchProjects();
-  await Promise.all([fetchChatHistory(), fetchProjectReports()]);
+  await Promise.all([fetchChatHistory(), fetchProjectReports(), loadCustomCss()]);
   loginScreen.style.display = 'none';
   app.classList.add('visible');
   showView('chat');
   restoreChatUI();
   msgInput.focus();
 });
+
+socket.on('dashboard_css_updated', loadCustomCss);
 
 socket.on('auth_fail', ({ error }) => {
   loginErr.textContent = error || 'Incorrect password';

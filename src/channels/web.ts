@@ -96,7 +96,10 @@ export class WebChannel implements Channel {
       express.static(publicDir, {
         setHeaders: (res, filePath) => {
           if (filePath.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.setHeader(
+              'Cache-Control',
+              'no-store, no-cache, must-revalidate, max-age=0',
+            );
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
           }
@@ -317,6 +320,54 @@ export class WebChannel implements Channel {
       } catch {}
       res.json({ ok: true });
     });
+
+    // ── Live custom CSS for the dashboard ────────────────────────────────────
+    // Lets the agent restyle the dashboard live (colors, layout, tables, etc.)
+    // without touching index.html or pushing to git. Persists across restarts
+    // and pushes to all connected browsers via socket on save.
+    const customCssFile = path.join(dataDir, 'dashboard-custom.css');
+    const loadCustomCss = (): string => {
+      try {
+        return fs.readFileSync(customCssFile, 'utf8');
+      } catch {
+        return '';
+      }
+    };
+    const saveCustomCss = (css: string): void => {
+      fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(customCssFile, css);
+      for (const sid of this.authedSockets) {
+        this.io?.to(sid).emit('dashboard_css_updated');
+      }
+    };
+
+    // Public read so the <link rel="stylesheet"> can fetch it without auth.
+    app.get('/api/dashboard-css', (_req, res) => {
+      res.type('text/css').send(loadCustomCss());
+    });
+
+    app.put('/api/dashboard-css', requireRestAuth, (req, res) => {
+      const body = req.body;
+      const css = typeof body === 'string' ? body : (body?.css ?? '');
+      if (typeof css !== 'string') {
+        res.status(400).json({ error: 'css must be a string' });
+        return;
+      }
+      saveCustomCss(css);
+      res.json({ ok: true, bytes: css.length });
+    });
+
+    // Plain text fallback for `curl --data-binary @file.css ... -H "Content-Type: text/css"`
+    app.put(
+      '/api/dashboard-css/raw',
+      requireRestAuth,
+      express.text({ type: '*/*', limit: '1mb' }),
+      (req, res) => {
+        const css = req.body || '';
+        saveCustomCss(css);
+        res.json({ ok: true, bytes: css.length });
+      },
+    );
 
     app.get('/{*path}', (_req, res) => {
       res.sendFile(path.join(publicDir, 'index.html'));
