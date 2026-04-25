@@ -22,11 +22,11 @@ import { ChannelOpts, registerChannel } from './registry.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const WEB_JID         = 'web:dashboard';
-const WEB_SENDER      = 'web-user';
+const WEB_JID = 'web:dashboard';
+const WEB_SENDER = 'web-user';
 const WEB_SENDER_NAME = 'Reilly';
-const DEFAULT_PORT    = 3000;
-const CHAT_MAX_MSGS   = 500;
+const DEFAULT_PORT = 3000;
+const CHAT_MAX_MSGS = 500;
 
 // ── Channel Implementation ───────────────────────────────────────────────────
 
@@ -55,7 +55,8 @@ export class WebChannel implements Channel {
     const groups = this.opts.registeredGroups();
     if (groups[WEB_JID]) return;
 
-    const assistantName = readEnvFile(['ASSISTANT_NAME'])['ASSISTANT_NAME'] || 'Andy';
+    const assistantName =
+      readEnvFile(['ASSISTANT_NAME'])['ASSISTANT_NAME'] || 'Andy';
     const group: RegisteredGroup = {
       name: 'Web Dashboard',
       folder: 'web-dashboard',
@@ -69,9 +70,12 @@ export class WebChannel implements Channel {
     // Persist to database so it survives restarts
     setRegisteredGroup(WEB_JID, group);
     // Create group folder structure
-    fs.mkdirSync(path.join(this.projectRoot, 'groups', 'web-dashboard', 'logs'), {
-      recursive: true,
-    });
+    fs.mkdirSync(
+      path.join(this.projectRoot, 'groups', 'web-dashboard', 'logs'),
+      {
+        recursive: true,
+      },
+    );
 
     logger.info({ jid: WEB_JID }, 'Web Dashboard group auto-registered');
   }
@@ -92,15 +96,18 @@ export class WebChannel implements Channel {
     // ── REST API: Projects ───────────────────────────────────────────────────
     app.use(express.json());
 
-    const dataDir      = path.join(this.projectRoot, 'data');
+    const dataDir = path.join(this.projectRoot, 'data');
     const projectsFile = path.join(dataDir, 'projects.json');
-    const chatFile     = path.join(dataDir, 'web-chat-history.json');
-    const reportsFile  = path.join(dataDir, 'project-reports.json');
+    const chatFile = path.join(dataDir, 'web-chat-history.json');
+    const reportsFile = path.join(dataDir, 'project-reports.json');
 
     // ── Project report cache helpers ─────────────────────────────────────────
     const loadReports = (): Record<string, unknown> => {
-      try { return JSON.parse(fs.readFileSync(reportsFile, 'utf8')); }
-      catch { return {}; }
+      try {
+        return JSON.parse(fs.readFileSync(reportsFile, 'utf8'));
+      } catch {
+        return {};
+      }
     };
     const saveReport = (key: string, data: unknown): void => {
       fs.mkdirSync(dataDir, { recursive: true });
@@ -113,11 +120,19 @@ export class WebChannel implements Channel {
     };
 
     // ── Chat history helpers ─────────────────────────────────────────────────
-    interface ChatMsg { role: 'user' | 'assistant'; who: string; text: string; ts: number; }
+    interface ChatMsg {
+      role: 'user' | 'assistant';
+      who: string;
+      text: string;
+      ts: number;
+    }
 
     const loadChat = (): ChatMsg[] => {
-      try { return JSON.parse(fs.readFileSync(chatFile, 'utf8')); }
-      catch { return []; }
+      try {
+        return JSON.parse(fs.readFileSync(chatFile, 'utf8'));
+      } catch {
+        return [];
+      }
     };
 
     const appendChat = (msg: ChatMsg): void => {
@@ -131,9 +146,13 @@ export class WebChannel implements Channel {
 
     const DEFAULT_PROJECTS = [
       {
-        key: 'surf', name: 'Surf Report', icon: '🏄',
-        accentBg: 'rgba(56,189,248,0.12)', nameColor: '#7dd3fc',
-        prompt: "Give me the current surf report. Include: wave height (with a short label like '3-5 ft'), wind speed and direction (e.g. '12 mph Offshore'), water temperature (e.g. '62°F'), and swell period (e.g. '14s'). Lead with a one-sentence overall rating. Then give a detailed breakdown.",
+        key: 'surf',
+        name: 'Surf Report',
+        icon: '🏄',
+        accentBg: 'rgba(56,189,248,0.12)',
+        nameColor: '#7dd3fc',
+        prompt:
+          "Give me the current surf report. Include: wave height (with a short label like '3-5 ft'), wind speed and direction (e.g. '12 mph Offshore'), water temperature (e.g. '62°F'), and swell period (e.g. '14s'). Lead with a one-sentence overall rating. Then give a detailed breakdown.",
         links: [
           { label: 'Surfline', url: 'https://www.surfline.com' },
           { label: 'Magic Seaweed', url: 'https://magicseaweed.com' },
@@ -141,16 +160,30 @@ export class WebChannel implements Channel {
           { label: 'Windy', url: 'https://www.windy.com' },
         ],
         stats: [
-          { id: 'waves',  label: 'Wave Height', pattern: '(\\d[\\d\\s\\-\\u2013]*(?:ft|feet))', flags: 'i' },
-          { id: 'wind',   label: 'Wind',         pattern: '(\\d+\\s*mph)',                       flags: 'i' },
-          { id: 'temp',   label: 'Water Temp',   pattern: '(\\d+°?F)',                           flags: 'i' },
-          { id: 'period', label: 'Swell Period',  pattern: '(\\d+s(?:ec)?(?:onds?)?)',            flags: 'i' },
+          {
+            id: 'waves',
+            label: 'Wave Height',
+            pattern: '(\\d[\\d\\s\\-\\u2013]*(?:ft|feet))',
+            flags: 'i',
+          },
+          { id: 'wind', label: 'Wind', pattern: '(\\d+\\s*mph)', flags: 'i' },
+          { id: 'temp', label: 'Water Temp', pattern: '(\\d+°?F)', flags: 'i' },
+          {
+            id: 'period',
+            label: 'Swell Period',
+            pattern: '(\\d+s(?:ec)?(?:onds?)?)',
+            flags: 'i',
+          },
         ],
       },
       {
-        key: 'tide', name: 'Tide Chart', icon: '🌊',
-        accentBg: 'rgba(99,102,241,0.12)', nameColor: '#a5b4fc',
-        prompt: "Give me today's tide schedule. List each high and low tide with its time and height in feet. Start with the very next upcoming tide. Format as a clear list.",
+        key: 'tide',
+        name: 'Tide Chart',
+        icon: '🌊',
+        accentBg: 'rgba(99,102,241,0.12)',
+        nameColor: '#a5b4fc',
+        prompt:
+          "Give me today's tide schedule. List each high and low tide with its time and height in feet. Start with the very next upcoming tide. Format as a clear list.",
         links: [
           { label: 'NOAA Tides', url: 'https://tidesandcurrents.noaa.gov' },
           { label: 'Tides Chart', url: 'https://www.tideschart.com' },
@@ -158,9 +191,13 @@ export class WebChannel implements Channel {
         stats: [],
       },
       {
-        key: 'weather', name: 'Weather', icon: '⛅',
-        accentBg: 'rgba(251,191,36,0.10)', nameColor: '#fde68a',
-        prompt: "Give me a 7-day weather forecast. For today include: conditions (e.g. 'Sunny'), high/low temperatures (e.g. '72°/58°'), wind, and UV index. Then list each of the next 6 days briefly.",
+        key: 'weather',
+        name: 'Weather',
+        icon: '⛅',
+        accentBg: 'rgba(251,191,36,0.10)',
+        nameColor: '#fde68a',
+        prompt:
+          "Give me a 7-day weather forecast. For today include: conditions (e.g. 'Sunny'), high/low temperatures (e.g. '72°/58°'), wind, and UV index. Then list each of the next 6 days briefly.",
         links: [
           { label: 'NWS Forecast', url: 'https://forecast.weather.gov' },
           { label: 'Weather.com', url: 'https://www.weather.com' },
@@ -169,9 +206,13 @@ export class WebChannel implements Channel {
         stats: [],
       },
       {
-        key: 'jobs', name: 'Job Search', icon: '💼',
-        accentBg: 'rgba(52,211,153,0.10)', nameColor: '#6ee7b7',
-        prompt: "Give me a job search update. How many new relevant openings are there? How many applications are in progress? Any interviews or callbacks? What's the top recommended opportunity right now? Give a detailed breakdown.",
+        key: 'jobs',
+        name: 'Job Search',
+        icon: '💼',
+        accentBg: 'rgba(52,211,153,0.10)',
+        nameColor: '#6ee7b7',
+        prompt:
+          "Give me a job search update. How many new relevant openings are there? How many applications are in progress? Any interviews or callbacks? What's the top recommended opportunity right now? Give a detailed breakdown.",
         links: [
           { label: 'LinkedIn', url: 'https://www.linkedin.com/jobs' },
           { label: 'Indeed', url: 'https://www.indeed.com' },
@@ -183,8 +224,11 @@ export class WebChannel implements Channel {
     ];
 
     const loadProjects = (): object[] => {
-      try { return JSON.parse(fs.readFileSync(projectsFile, 'utf8')); }
-      catch { return DEFAULT_PROJECTS; }
+      try {
+        return JSON.parse(fs.readFileSync(projectsFile, 'utf8'));
+      } catch {
+        return DEFAULT_PROJECTS;
+      }
     };
 
     const saveProjects = (projects: object[]): void => {
@@ -196,9 +240,14 @@ export class WebChannel implements Channel {
       }
     };
 
-    const requireRestAuth = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    const requireRestAuth = (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction,
+    ): void => {
       if (req.headers['x-dashboard-password'] !== this.password) {
-        res.status(401).json({ error: 'Unauthorized' }); return;
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
       }
       next();
     };
@@ -218,14 +267,19 @@ export class WebChannel implements Channel {
     app.put('/api/projects/:key', requireRestAuth, (req, res) => {
       const projects = loadProjects() as any[];
       const i = projects.findIndex((p: any) => p.key === req.params.key);
-      if (i < 0) { res.status(404).json({ error: 'Not found' }); return; }
+      if (i < 0) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
       projects[i] = { ...req.body, key: req.params.key };
       saveProjects(projects);
       res.json(projects[i]);
     });
 
     app.delete('/api/projects/:key', requireRestAuth, (req, res) => {
-      const filtered = (loadProjects() as any[]).filter((p: any) => p.key !== req.params.key);
+      const filtered = (loadProjects() as any[]).filter(
+        (p: any) => p.key !== req.params.key,
+      );
       saveProjects(filtered);
       res.json({ ok: true });
     });
@@ -235,7 +289,9 @@ export class WebChannel implements Channel {
     });
 
     app.post('/api/project-reports/:key', requireRestAuth, (req, res) => {
-      const key = Array.isArray(req.params.key) ? req.params.key[0] : req.params.key;
+      const key = Array.isArray(req.params.key)
+        ? req.params.key[0]
+        : req.params.key;
       saveReport(key, req.body);
       res.json({ ok: true });
     });
@@ -245,7 +301,9 @@ export class WebChannel implements Channel {
     });
 
     app.delete('/api/chat', requireRestAuth, (_req, res) => {
-      try { fs.writeFileSync(chatFile, '[]'); } catch {}
+      try {
+        fs.writeFileSync(chatFile, '[]');
+      } catch {}
       res.json({ ok: true });
     });
 
@@ -289,24 +347,43 @@ export class WebChannel implements Channel {
           is_from_me: false,
         };
 
-        this.opts.onChatMetadata(WEB_JID, msg.timestamp, 'Web Dashboard', 'web', false);
+        this.opts.onChatMetadata(
+          WEB_JID,
+          msg.timestamp,
+          'Web Dashboard',
+          'web',
+          false,
+        );
         this.opts.onMessage(WEB_JID, msg);
 
         // Echo back so the browser can render the user bubble immediately
         socket.emit('user_message', { text: trimmed, timestamp: Date.now() });
-        appendChat({ role: 'user', who: WEB_SENDER_NAME, text: trimmed, ts: Date.now() });
-        logger.debug({ preview: trimmed.slice(0, 80) }, 'Web Dashboard: message received');
+        appendChat({
+          role: 'user',
+          who: WEB_SENDER_NAME,
+          text: trimmed,
+          ts: Date.now(),
+        });
+        logger.debug(
+          { preview: trimmed.slice(0, 80) },
+          'Web Dashboard: message received',
+        );
       });
 
       socket.on('disconnect', () => {
         this.authedSockets.delete(socket.id);
-        logger.debug({ socketId: socket.id }, 'Web Dashboard: client disconnected');
+        logger.debug(
+          { socketId: socket.id },
+          'Web Dashboard: client disconnected',
+        );
       });
     });
 
     await new Promise<void>((resolve, reject) => {
       httpServer.listen(this.port, () => {
-        logger.info(`🌐 NanoClaw Web Dashboard → http://localhost:${this.port}`);
+        logger.info(
+          `🌐 NanoClaw Web Dashboard → http://localhost:${this.port}`,
+        );
         resolve();
       });
       httpServer.on('error', reject);
@@ -321,19 +398,35 @@ export class WebChannel implements Channel {
     const trimmed = text.trim();
     const ts = Date.now();
     for (const socketId of this.authedSockets) {
-      this.io.to(socketId).emit('assistant_message', { text: trimmed, timestamp: ts });
+      this.io
+        .to(socketId)
+        .emit('assistant_message', { text: trimmed, timestamp: ts });
     }
     // Persist to server-side history (best-effort)
     try {
-      const dataDir  = path.join(this.projectRoot, 'data');
+      const dataDir = path.join(this.projectRoot, 'data');
       const chatFile = path.join(dataDir, 'web-chat-history.json');
-      const history: Array<{ role: string; who: string; text: string; ts: number }> = (() => {
-        try { return JSON.parse(fs.readFileSync(chatFile, 'utf8')); } catch { return []; }
+      const history: Array<{
+        role: string;
+        who: string;
+        text: string;
+        ts: number;
+      }> = (() => {
+        try {
+          return JSON.parse(fs.readFileSync(chatFile, 'utf8'));
+        } catch {
+          return [];
+        }
       })();
       history.push({ role: 'assistant', who: 'NanoClaw', text: trimmed, ts });
       fs.writeFileSync(chatFile, JSON.stringify(history.slice(-CHAT_MAX_MSGS)));
-    } catch { /* non-fatal */ }
-    logger.debug({ chars: trimmed.length }, 'Web Dashboard: response delivered');
+    } catch {
+      /* non-fatal */
+    }
+    logger.debug(
+      { chars: trimmed.length },
+      'Web Dashboard: response delivered',
+    );
   }
 
   // Show/hide typing indicator in browser
@@ -344,8 +437,12 @@ export class WebChannel implements Channel {
     }
   }
 
-  isConnected(): boolean { return this.connected; }
-  ownsJid(jid: string): boolean { return jid.startsWith('web:'); }
+  isConnected(): boolean {
+    return this.connected;
+  }
+  ownsJid(jid: string): boolean {
+    return jid.startsWith('web:');
+  }
 
   async disconnect(): Promise<void> {
     this.io?.close();

@@ -368,15 +368,6 @@
       transition: all .15s; text-align: center;
     }
     .add-link-btn:hover { border-color: var(--border-hover); color: var(--text); background: rgba(255,255,255,0.05); }
-    .theme-swatch {
-      display: flex; align-items: center; gap: 7px; padding: 7px 12px;
-      border-radius: 10px; border: 1px solid var(--border); cursor: pointer;
-      font-size: 11px; font-weight: 600; color: var(--text-mid);
-      background: rgba(255,255,255,0.03); transition: all .15s; user-select: none;
-    }
-    .theme-swatch:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.06); }
-    .theme-swatch.active { border-color: rgba(255,255,255,0.25); color: var(--text); background: rgba(255,255,255,0.07); }
-    .theme-swatch-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .modal-footer {
       display: flex; align-items: center; gap: 10px;
       padding: 16px 26px; border-top: 1px solid var(--border); flex-shrink: 0;
@@ -570,12 +561,6 @@
         <textarea class="form-textarea" id="modal-prompt" placeholder="What should NanoClaw tell you when you refresh this project?"></textarea>
       </div>
       <div class="form-group">
-        <div class="form-label">Theme</div>
-        <div id="modal-themes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-        <input type="hidden" id="modal-accentBg" value="">
-        <input type="hidden" id="modal-nameColor" value="">
-      </div>
-      <div class="form-group">
         <div class="form-label">Links</div>
         <div class="links-list" id="modal-links"></div>
         <button class="add-link-btn" onclick="addModalLink()">+ Add Link</button>
@@ -639,6 +624,7 @@ let currentView    = 'chat';
 // 'chat'    = waiting for a chat response
 // null      = idle
 let pendingSource  = null;
+let suppressNextUserEcho = false; // set when drawer pre-appends to avoid duplicate
 let pendingProject = null; // project key when pendingSource === 'project'
 let dashPassword   = '';
 let projects       = [];
@@ -890,6 +876,7 @@ function refreshProject(projectKey) {
 // ── Incoming socket messages ───────────────────────────────────────────────────
 socket.on('user_message', ({ text }) => {
   if (pendingSource === 'chat') {
+    if (suppressNextUserEcho) { suppressNextUserEcho = false; return; }
     hideEmpty();
     appendChatMsg('user', 'You', text);
   }
@@ -1014,34 +1001,6 @@ function renderProjectResponse(projectKey, text) {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const ICON_LIST = ['📋','📊','💼','🏄','🌊','🌤','💰','📈','🎯','🔧','🚀','⭐','🏠','🎮','🎵','📚','🌍','💡','🔔','🛒','✅','📝','🔍','💬','🗂','📅','⚡','🎨','🤖','🌱','🏋','🍕'];
 
-const THEMES = [
-  { name: 'Default',  dot: '#4f8ef7', accentBg: 'rgba(79,142,247,0.12)',   nameColor: '#4f8ef7' },
-  { name: 'Beach',    dot: '#22d3ee', accentBg: 'rgba(6,182,212,0.15)',    nameColor: '#22d3ee' },
-  { name: 'Sunset',   dot: '#fb923c', accentBg: 'rgba(251,146,60,0.14)',   nameColor: '#fb923c' },
-  { name: 'Forest',   dot: '#4ade80', accentBg: 'rgba(74,222,128,0.12)',   nameColor: '#4ade80' },
-  { name: 'Dusk',     dot: '#a78bfa', accentBg: 'rgba(167,139,250,0.13)',  nameColor: '#a78bfa' },
-  { name: 'Rose',     dot: '#f472b6', accentBg: 'rgba(244,114,182,0.13)',  nameColor: '#f472b6' },
-  { name: 'Gold',     dot: '#fbbf24', accentBg: 'rgba(251,191,36,0.12)',   nameColor: '#fbbf24' },
-  { name: 'Sand',     dot: '#d4a76a', accentBg: 'rgba(212,167,106,0.13)',  nameColor: '#d4a76a' },
-];
-
-function renderThemePicker(currentAccentBg) {
-  const container = document.getElementById('modal-themes');
-  container.innerHTML = '';
-  THEMES.forEach(t => {
-    const el = document.createElement('div');
-    el.className = 'theme-swatch' + (currentAccentBg === t.accentBg ? ' active' : '');
-    el.innerHTML = `<div class="theme-swatch-dot" style="background:${t.dot}"></div>${t.name}`;
-    el.onclick = () => {
-      document.getElementById('modal-accentBg').value = t.accentBg;
-      document.getElementById('modal-nameColor').value = t.nameColor;
-      container.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
-      el.classList.add('active');
-    };
-    container.appendChild(el);
-  });
-}
-
 function setModalIcon(emoji) {
   document.getElementById('modal-icon').value = emoji;
   document.getElementById('modal-icon-display').textContent = emoji;
@@ -1079,9 +1038,6 @@ function openAddModal() {
   document.getElementById('modal-name').value = '';
   document.getElementById('modal-prompt').value = '';
   document.getElementById('modal-links').innerHTML = '';
-  document.getElementById('modal-accentBg').value = '';
-  document.getElementById('modal-nameColor').value = '';
-  renderThemePicker('');
   document.getElementById('modal-delete-btn').style.display = 'none';
   document.getElementById('project-modal').style.display = 'flex';
 }
@@ -1094,9 +1050,6 @@ function openEditModal(key) {
   setModalIcon(proj.icon || '📋');
   document.getElementById('modal-name').value = proj.name || '';
   document.getElementById('modal-prompt').value = proj.prompt || '';
-  document.getElementById('modal-accentBg').value = proj.accentBg || '';
-  document.getElementById('modal-nameColor').value = proj.nameColor || '';
-  renderThemePicker(proj.accentBg || '');
   // Populate links
   const linksList = document.getElementById('modal-links');
   linksList.innerHTML = '';
@@ -1139,17 +1092,16 @@ async function saveCurrentProject() {
     if (label && url) links.push({ label, url });
   });
 
-  const accentBg  = document.getElementById('modal-accentBg').value;
-  const nameColor = document.getElementById('modal-nameColor').value;
-  const payload = { icon, name, prompt, links, stats: [], accentBg, nameColor };
+  const payload = { icon, name, prompt, links, stats: [], accentBg: '', nameColor: '' };
 
   try {
     if (modalEditingKey) {
-      // Preserve existing stats; colors come from theme picker
+      // Preserve existing stats/colors from current project
       const existing = projects.find(p => p.key === modalEditingKey);
       if (existing) {
-        payload.stats = existing.stats || [];
-        if (!accentBg) { payload.accentBg = existing.accentBg || ''; payload.nameColor = existing.nameColor || ''; }
+        payload.stats      = existing.stats || [];
+        payload.accentBg   = existing.accentBg || '';
+        payload.nameColor  = existing.nameColor || '';
       }
       await apiRequest('PUT', `/api/projects/${modalEditingKey}`, payload);
     } else {
@@ -1237,7 +1189,8 @@ function sendDrawerMessage() {
   }
 
   socket.emit('message', { text: textToSend });
-  // Show only the user's actual words in the bubble
+  // Show only the user's actual words in the bubble (suppress the server echo)
+  suppressNextUserEcho = true;
   hideEmpty();
   appendChatMsg('user', 'You', text);
   drawerInput.value = '';
