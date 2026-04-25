@@ -1,3 +1,11 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "stratum": {
+      "command": "node",
+      "args": ["/home/node/Stratum/StratumMcp/dist/index.js"],
+      "env": {
+        "STRATUM_WS_URL": "ws://10.0.0.26:5199/ws"
+      }
+    }
+  }
 }

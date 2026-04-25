@@ -26,6 +26,7 @@ import {
   stopContainer,
 } from './container-runtime.js';
 import { detectAuthMode } from './credential-proxy.js';
+import { readEnvFile } from './env.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 
@@ -123,28 +124,38 @@ function buildVolumeMounts(
   );
   fs.mkdirSync(groupSessionsDir, { recursive: true });
   const settingsFile = path.join(groupSessionsDir, 'settings.json');
-  if (!fs.existsSync(settingsFile)) {
-    fs.writeFileSync(
-      settingsFile,
-      JSON.stringify(
-        {
-          env: {
-            // Enable agent swarms (subagent orchestration)
-            // https://code.claude.com/docs/en/agent-teams#orchestrate-teams-of-claude-code-sessions
-            CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-            // Load CLAUDE.md from additional mounted directories
-            // https://code.claude.com/docs/en/memory#load-memory-from-additional-directories
-            CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
-            // Enable Claude's memory feature (persists user preferences between sessions)
-            // https://code.claude.com/docs/en/memory#manage-auto-memory
-            CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
+
+  // Read host env vars to forward into the container (never the full .env)
+  const hostEnv = readEnvFile(['GITHUB_TOKEN', 'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'WEB_DASHBOARD_PASSWORD', 'WEB_PORT']);
+
+  const requiredEnv: Record<string, string> = {
+    CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
+    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
+    CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
+  };
+  if (hostEnv.GITHUB_TOKEN)          requiredEnv.GITHUB_TOKEN          = hostEnv.GITHUB_TOKEN;
+  if (hostEnv.GIT_AUTHOR_NAME)       requiredEnv.GIT_AUTHOR_NAME       = hostEnv.GIT_AUTHOR_NAME;
+  if (hostEnv.GIT_AUTHOR_EMAIL)      requiredEnv.GIT_AUTHOR_EMAIL      = hostEnv.GIT_AUTHOR_EMAIL;
+  if (hostEnv.WEB_DASHBOARD_PASSWORD) requiredEnv.WEB_DASHBOARD_PASSWORD = hostEnv.WEB_DASHBOARD_PASSWORD;
+  if (hostEnv.WEB_PORT)              requiredEnv.WEB_PORT              = hostEnv.WEB_PORT;
+
+  // Merge required env into any existing settings the user may have customised
+  let existingSettings: Record<string, unknown> = {};
+  if (fs.existsSync(settingsFile)) {
+    try {
+      existingSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8')) as Record<string, unknown>;
+    } catch {
+      existingSettings = {};
+    }
   }
+  const mergedSettings = {
+    ...existingSettings,
+    env: {
+      ...((existingSettings.env as Record<string, string> | undefined) ?? {}),
+      ...requiredEnv,
+    },
+  };
+  fs.writeFileSync(settingsFile, JSON.stringify(mergedSettings, null, 2) + '\n');
 
   // Sync skills from container/skills/ into each group's .claude/skills/
   const skillsSrc = path.join(process.cwd(), 'container', 'skills');

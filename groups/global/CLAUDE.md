@@ -71,6 +71,31 @@ Use Slack mrkdwn syntax. Run `/slack-formatting` for the full reference. Key rul
 
 No `##` headings. No `[links](url)`. No `**double stars**`.
 
-### Discord channels (folder starts with `discord_`)
+### Web Dashboard (folder starts with `web-`)
 
-Standard Markdown works: `**bold**`, `*italic*`, `[links](url)`, `# headings`.
+Standard Markdown works: `**bold**`, `*italic*`, `[links](url)`, `# headings`, tables, code blocks.
+
+## GitHub Access
+
+You have a `GITHUB_TOKEN` environment variable available. Use it to push changes to GitHub repos.
+
+**To push changes to a repo:**
+
+```bash
+# 1. Navigate to the repo (mounted under /workspace/global or the path the user specifies)
+cd /path/to/repo
+
+# 2. Configure git to use the token (do this once per session)
+git config user.name "$GIT_AUTHOR_NAME"
+git config user.email "$GIT_AUTHOR_EMAIL"
+git remote set-url origin "https://x-token:${GITHUB_TOKEN}@github.com/OWNER/REPO.git"
+
+# 3. Make your changes, then commit and push
+git add -A
+git commit -m "your commit message"
+git push
+```
+
+**The NanoclawDashboard repo** is at `/workspace/global/../../../Documents/Github/NanoclawDashboard` on the host. Ask the user to mount it if you need direct file access, or clone it to `/workspace/group/` for a working copy.
+
+When editing the dashboard's `public/index.html`, always copy the result back to `/Users/reillynanoclaw/Documents/Github/nanoclaw/dashboard/public/index.html` as well so the running server stays in sync.
