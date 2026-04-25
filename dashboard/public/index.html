@@ -432,6 +432,10 @@
     <div class="field-label">Password</div>
     <input type="password" class="field-input" id="pw" placeholder="Password" autocomplete="current-password">
     <button class="login-submit" id="login-btn">Sign In</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:14px">
+      <input type="checkbox" id="remember-me" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer">
+      <label for="remember-me" style="font-size:12px;color:var(--text-dim);cursor:pointer;font-weight:500;user-select:none">Remember me on this device</label>
+    </div>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
@@ -759,23 +763,42 @@ function toggleSidebar() {
   }, { passive: true });
 })();
 
-// ── Connection ────────────────────────────────────────────────────────────────
-socket.on('connect',    () => { connDot.classList.remove('offline'); connLabel.textContent = 'Connected'; });
-socket.on('disconnect', () => { connDot.classList.add('offline');    connLabel.textContent = 'Disconnected'; });
-
 // ── Auth ──────────────────────────────────────────────────────────────────────
-function doLogin() {
-  const pw = pwInput.value.trim();
-  const un = unInput.value.trim();
-  if (!pw) return;
+const SAVED_LOGIN_KEY = 'nc_saved_login';
+
+function loadSavedLogin() {
+  try { return JSON.parse(localStorage.getItem(SAVED_LOGIN_KEY) || 'null'); } catch { return null; }
+}
+function saveLogin(username, password) {
+  localStorage.setItem(SAVED_LOGIN_KEY, JSON.stringify({ username, password }));
+}
+function clearSavedLogin() {
+  localStorage.removeItem(SAVED_LOGIN_KEY);
+}
+
+function doLogin(username, password, remember) {
   loginErr.textContent = '';
   loginBtn.textContent = 'Signing in…';
   loginBtn.disabled = true;
-  dashPassword = pw;
-  dashUsername = un || 'user';
-  socket.emit('auth', { password: pw, username: un || undefined });
+  dashPassword = password;
+  dashUsername = username || 'user';
+  if (remember) saveLogin(username, password);
+  socket.emit('auth', { password, username: username || undefined });
 }
 
+// On connect, try auto-login from saved credentials
+socket.on('connect', () => {
+  connDot.classList.remove('offline');
+  connLabel.textContent = 'Connected';
+  const saved = loadSavedLogin();
+  if (saved && loginScreen.style.display !== 'none') {
+    loginScreen.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:12px;opacity:.5"><div style="font-size:28px">🤖</div><div style="font-size:14px;font-weight:600;font-family:inherit">Signing in…</div></div>`;
+    doLogin(saved.username, saved.password, false);
+  }
+});
+socket.on('disconnect', () => { connDot.classList.add('offline'); connLabel.textContent = 'Disconnected'; });
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
 socket.on('auth_ok', async ({ username } = {}) => {
   if (username) {
     dashUsername = username;
@@ -792,6 +815,9 @@ socket.on('auth_ok', async ({ username } = {}) => {
 });
 
 socket.on('auth_fail', ({ error }) => {
+  clearSavedLogin(); // clear bad saved credentials
+  // Restore login screen if auto-login replaced it
+  if (!document.getElementById('pw')) location.reload();
   loginErr.textContent = error || 'Incorrect password';
   loginBtn.textContent = 'Sign In';
   loginBtn.disabled = false;
@@ -800,8 +826,11 @@ socket.on('auth_fail', ({ error }) => {
   dashPassword = '';
 });
 
-loginBtn.addEventListener('click', doLogin);
-pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+loginBtn.addEventListener('click', () => {
+  const remember = document.getElementById('remember-me')?.checked || false;
+  doLogin(unInput.value.trim(), pwInput.value.trim(), remember);
+});
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
 unInput.addEventListener('keydown', e => { if (e.key === 'Enter') pwInput.focus(); });
 
 // ── Custom CSS ────────────────────────────────────────────────────────────────
@@ -1672,7 +1701,12 @@ function sendDrawerMessage() {
 }
 
 // ── Controls ──────────────────────────────────────────────────────────────────
-document.getElementById('logout-btn').addEventListener('click', () => location.reload());
+document.getElementById('logout-btn').addEventListener('click', () => {
+  if (confirm('Logout?\n\nTip: if this is a trusted device you can stay signed in — just close the tab. Click OK to fully log out and forget this device.')) {
+    clearSavedLogin();
+    location.reload();
+  }
+});
 document.getElementById('clear-btn').addEventListener('click', async () => {
   chatMessages = [];
   try { await apiRequest('DELETE', '/api/chat', null); } catch {}
