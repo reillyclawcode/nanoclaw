@@ -845,6 +845,10 @@ async function loadCustomCss() {
   } catch {}
 }
 socket.on('dashboard_css_updated', loadCustomCss);
+socket.on('dashboard_updated', () => {
+  showToast('Dashboard updated — reloading…');
+  setTimeout(() => location.reload(), 1200);
+});
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function apiRequest(method, path, body) {
@@ -910,18 +914,35 @@ function renderSidebar() {
   });
 }
 
+const _delArmed = new Map(); // key -> timeout id
 async function deleteProject(key, e) {
   e.stopPropagation();
-  const proj = projects.find(p => p.key === key);
-  if (!proj) return;
-  if (!confirm(`Delete "${proj.name}"?\n\nThis will permanently remove the project and its report.`)) return;
+  const btn = e.currentTarget;
+  if (!_delArmed.has(key)) {
+    // First click: arm the button (turn red, show "Sure?")
+    btn.textContent = 'Sure?';
+    btn.style.color = 'var(--danger, #f87171)';
+    btn.style.fontWeight = '600';
+    const t = setTimeout(() => {
+      _delArmed.delete(key);
+      btn.textContent = '✕';
+      btn.style.color = '';
+      btn.style.fontWeight = '';
+    }, 2500);
+    _delArmed.set(key, t);
+    return;
+  }
+  // Second click: actually delete
+  clearTimeout(_delArmed.get(key));
+  _delArmed.delete(key);
   try {
     await apiRequest('DELETE', `/api/projects/${key}`, null);
     projects = projects.filter(p => p.key !== key);
     renderSidebar();
     if (currentView === key) showView('chat');
+    showToast('Project deleted');
   } catch (err) {
-    alert('Failed to delete project: ' + err.message);
+    showToast('Failed to delete: ' + err.message);
   }
 }
 

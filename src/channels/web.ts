@@ -352,11 +352,9 @@ export class WebChannel implements Channel {
           { ip },
           `Web Dashboard: REST blocked (rate limit, ${secondsLeft}s remaining)`,
         );
-        res
-          .status(429)
-          .json({
-            error: `Too many failed attempts. Try again in ${secondsLeft} seconds.`,
-          });
+        res.status(429).json({
+          error: `Too many failed attempts. Try again in ${secondsLeft} seconds.`,
+        });
         return;
       }
       const pw = req.headers['x-dashboard-password'] as string;
@@ -727,6 +725,19 @@ export class WebChannel implements Channel {
         resolve();
       });
       httpServer.on('error', reject);
+    });
+
+    // ── Live dashboard reload ─────────────────────────────────────────────────
+    // Watch index.html for changes (e.g. NanoClaw edits it directly) and push
+    // a dashboard_updated event so connected browsers reload automatically.
+    const indexHtmlPath = path.join(publicDir, 'index.html');
+    let reloadDebounce: ReturnType<typeof setTimeout> | null = null;
+    fs.watchFile(indexHtmlPath, { interval: 1500 }, () => {
+      if (reloadDebounce) clearTimeout(reloadDebounce);
+      reloadDebounce = setTimeout(() => {
+        logger.info('dashboard/public/index.html changed — pushing reload to clients');
+        this.io?.emit('dashboard_updated');
+      }, 800);
     });
 
     this.connected = true;
