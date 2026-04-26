@@ -344,7 +344,7 @@
     .feat-stat-val { font-family: var(--mono); font-size: 15px; font-weight: 700; letter-spacing: -0.5px; color: var(--paper); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .feat-right { border-left: 1px solid var(--rule); padding: 20px 22px; display: flex; flex-direction: column; }
     .feat-right-label { font-family: var(--mono); font-size: 9px; color: var(--paper-dim); letter-spacing: 1.4px; margin-bottom: 8px; text-transform: uppercase; }
-    .feat-prompt { font-size: 13px; color: var(--paper-soft); line-height: 1.5; font-style: italic; flex: 1; }
+    .feat-prompt { font-size: 13px; color: var(--paper-soft); line-height: 1.5; font-style: italic; flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
     .feat-actions { display: flex; gap: 8px; margin-top: 12px; }
     .projects-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
     .proj-row { background: var(--bg); padding: 16px 18px; display: grid; grid-template-columns: 6px 36px 1fr auto; gap: 14px; align-items: flex-start; cursor: pointer; transition: background .1s; }
@@ -353,7 +353,7 @@
     .proj-icon-box { width: 36px; height: 36px; background: var(--bg-alt); border: 1px solid var(--rule); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
     .proj-no { font-family: var(--mono); font-size: 9px; color: var(--paper-dim); letter-spacing: 1.4px; font-weight: 700; text-transform: uppercase; }
     .proj-name { font-family: var(--sans); font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: var(--paper); margin-top: 4px; text-transform: uppercase; }
-    .proj-prompt { font-size: 11px; color: var(--paper-soft); font-style: italic; margin-top: 2px; }
+    .proj-prompt { font-size: 11px; color: var(--paper-soft); font-style: italic; margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .proj-meta { font-family: var(--mono); font-size: 9px; color: var(--paper-dim); letter-spacing: 1.2px; margin-top: 6px; text-transform: uppercase; }
     .proj-count { font-family: var(--mono); font-size: 28px; font-weight: 700; letter-spacing: -1px; text-align: right; }
     .proj-count-label { font-family: var(--mono); font-size: 9px; color: var(--paper-dim); letter-spacing: 1.2px; text-align: right; text-transform: uppercase; }
@@ -1533,11 +1533,11 @@ function renderFeaturedProject() {
   document.getElementById('feat-spot').textContent = featProj.key.toUpperCase();
   const statsEl = document.getElementById('feat-stats');
   statsEl.innerHTML = [
-    ['PROMPT', (featProj.prompt||'—').slice(0,28)],
+    ['REPORTS', cached ? '1' : '0'],
     ['STATUS', cached ? 'HAS REPORT' : 'NO REPORT'],
-    ['ICON', featProj.icon || '📋'],
+    ['UPDATED', cached ? (cached.meta||'—').toUpperCase() : '—'],
   ].map(([l, v]) => `<div class="feat-stat"><div class="feat-stat-label">${l}</div><div class="feat-stat-val">${escHtml(v)}</div></div>`).join('');
-  document.getElementById('feat-prompt').textContent = `"${featProj.prompt || 'No prompt set'}"`;
+  document.getElementById('feat-prompt').textContent = briefPrompt(featProj.prompt, 120);
   document.getElementById('feat-actions').innerHTML = `
     <button class="hdr-btn" onclick="showView('${escHtml(featProj.key)}')">VIEW REPORT</button>
     <button class="hdr-btn" onclick="shareProject('${escHtml(featProj.key)}')">SHARE</button>`;
@@ -1562,7 +1562,7 @@ function renderProjectsGrid() {
       <div>
         <div class="proj-no">NO. ${String(i+1).padStart(2,'0')}</div>
         <div class="proj-name">${escHtml(p.name)}</div>
-        <div class="proj-prompt">"${escHtml(p.prompt||'—')}"</div>
+        <div class="proj-prompt">${escHtml(briefPrompt(p.prompt))}</div>
         <div class="proj-meta">${escHtml((cached?cached.meta:'No report').toUpperCase())}</div>
       </div>
       <div>
@@ -2310,6 +2310,28 @@ function appendChatMsg(role, who, text) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function escHtml(t) {
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Returns a clean 1-sentence summary of a project prompt (≤90 chars)
+function briefPrompt(prompt, maxLen = 90) {
+  if (!prompt) return '—';
+  // Strip leading instruction noise
+  let p = prompt
+    .replace(/^Output a complete [^\n.]+in markdown[^.]*\./i, '')
+    .replace(/^Do not (explain|describe)[^\n.]+\./ig, '')
+    .replace(/^Fetch current data[^\n.]+\./ig, '')
+    .replace(/^Structure (exactly|the output)[^\n.]+\./ig, '')
+    .replace(/^Before writing[^\n.]+\./ig, '')
+    .trim();
+  // Take first non-empty line that looks like a real sentence
+  const lines = p.split(/\n/).map(l => l.trim()).filter(Boolean);
+  p = lines[0] || prompt.trim();
+  // Take up to first sentence boundary
+  const sentenceEnd = p.search(/[.!?]\s/);
+  if (sentenceEnd > 0 && sentenceEnd < maxLen) p = p.slice(0, sentenceEnd + 1);
+  // Hard truncate
+  if (p.length > maxLen) p = p.slice(0, maxLen - 1).trimEnd() + '…';
+  return p;
 }
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
