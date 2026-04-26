@@ -908,22 +908,25 @@ function renderSidebar() {
     const item = document.createElement('div');
     item.className = 'sidebar-item' + (currentView === p.key ? ' active' : '');
     item.id = 'nav-' + p.key;
-    item.setAttribute('onclick', `showView(${JSON.stringify(p.key)})`);
-    item.innerHTML = `<span class="sidebar-icon">${escHtml(p.icon || '📋')}</span><span class="sidebar-item-label">${escHtml(p.name)}</span><button class="proj-del" onclick="deleteProject(${JSON.stringify(p.key)},event)" title="Delete project">✕</button>`;
+    item.innerHTML = `<span class="sidebar-icon">${escHtml(p.icon || '📋')}</span><span class="sidebar-item-label">${escHtml(p.name)}</span><button class="proj-del" title="Delete project">✕</button>`;
+    item.addEventListener('click', () => showView(p.key));
+    const delBtn = item.querySelector('.proj-del');
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteProject(p.key, delBtn); });
     container.appendChild(item);
   });
 }
 
 const _delArmed = new Map();
-async function deleteProject(key, e) {
-  e.stopPropagation();
-  // e.currentTarget is null in inline onclick; query the button directly
-  const btn = document.querySelector(`#nav-${CSS.escape(key)} .proj-del`);
+async function deleteProject(key, btn) {
   if (!_delArmed.has(key)) {
-    if (btn) { btn.textContent = 'Sure?'; btn.style.color = 'var(--danger,#f87171)'; btn.style.fontWeight = '600'; }
+    btn.textContent = 'Sure?';
+    btn.style.color = 'var(--danger,#f87171)';
+    btn.style.fontWeight = '600';
     const t = setTimeout(() => {
       _delArmed.delete(key);
-      if (btn) { btn.textContent = '✕'; btn.style.color = ''; btn.style.fontWeight = ''; }
+      btn.textContent = '✕';
+      btn.style.color = '';
+      btn.style.fontWeight = '';
     }, 2500);
     _delArmed.set(key, t);
     return;
