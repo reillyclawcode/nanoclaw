@@ -914,25 +914,20 @@ function renderSidebar() {
   });
 }
 
-const _delArmed = new Map(); // key -> timeout id
+const _delArmed = new Map();
 async function deleteProject(key, e) {
   e.stopPropagation();
-  const btn = e.currentTarget;
+  // e.currentTarget is null in inline onclick; query the button directly
+  const btn = document.querySelector(`#nav-${CSS.escape(key)} .proj-del`);
   if (!_delArmed.has(key)) {
-    // First click: arm the button (turn red, show "Sure?")
-    btn.textContent = 'Sure?';
-    btn.style.color = 'var(--danger, #f87171)';
-    btn.style.fontWeight = '600';
+    if (btn) { btn.textContent = 'Sure?'; btn.style.color = 'var(--danger,#f87171)'; btn.style.fontWeight = '600'; }
     const t = setTimeout(() => {
       _delArmed.delete(key);
-      btn.textContent = '✕';
-      btn.style.color = '';
-      btn.style.fontWeight = '';
+      if (btn) { btn.textContent = '✕'; btn.style.color = ''; btn.style.fontWeight = ''; }
     }, 2500);
     _delArmed.set(key, t);
     return;
   }
-  // Second click: actually delete
   clearTimeout(_delArmed.get(key));
   _delArmed.delete(key);
   try {

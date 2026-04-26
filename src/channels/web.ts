@@ -735,7 +735,9 @@ export class WebChannel implements Channel {
     fs.watchFile(indexHtmlPath, { interval: 1500 }, () => {
       if (reloadDebounce) clearTimeout(reloadDebounce);
       reloadDebounce = setTimeout(() => {
-        logger.info('dashboard/public/index.html changed — pushing reload to clients');
+        logger.info(
+          'dashboard/public/index.html changed — pushing reload to clients',
+        );
         this.io?.emit('dashboard_updated');
       }, 800);
     });
