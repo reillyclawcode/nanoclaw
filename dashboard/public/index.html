@@ -174,7 +174,17 @@
     .rail-empty { font-family: var(--mono); font-size: 10px; color: var(--paper-dim); letter-spacing: .5px; }
 
     /* ═══════════════════════════════ MESSAGES ═══════════════════════════════ */
-    .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+    .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+    #scroll-to-bottom {
+      display: none; position: absolute; bottom: 14px; right: 14px; z-index: 10;
+      width: 30px; height: 30px; border: 1px solid var(--rule);
+      background: var(--bg-alt); color: var(--paper-soft);
+      font-size: 14px; line-height: 1; cursor: pointer;
+      transition: opacity .15s, border-color .15s, color .15s;
+      align-items: center; justify-content: center;
+    }
+    #scroll-to-bottom.visible { display: flex; }
+    #scroll-to-bottom:hover { border-color: var(--paper-soft); color: var(--paper); }
     .msg-row { display: grid; grid-template-columns: 90px 1fr; border-bottom: 1px dashed var(--rule-soft); padding: 12px 20px; gap: 16px; animation: fadeUp .15s ease; }
     @keyframes fadeUp { from { opacity:0; transform: translateY(3px); } to { opacity:1; } }
     .msg-row.user .msg-meta-role { color: var(--signal); }
@@ -298,6 +308,28 @@
     .analytics-tools-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
     .analytics-tools-table th { text-align: left; padding: 4px 0; border-bottom: 1px solid var(--rule); color: var(--paper-dim); font-size: 9px; letter-spacing: 1.4px; }
     .analytics-tools-table td { padding: 7px 0; border-bottom: 1px dashed var(--rule-soft); }
+    /* ── Call log ── */
+    .an-calllog-wrap { max-height: 280px; overflow-y: auto; padding: 0 !important; }
+    .an-calllog-table { width: 100%; }
+    .an-calllog-table thead th { position: sticky; top: 0; background: var(--bg-alt); padding: 10px 12px 8px; z-index: 1; }
+    .an-calllog-table td { padding: 7px 12px; vertical-align: top; word-break: break-word; }
+    .an-calllog-table td:first-child { color: var(--paper-dim); white-space: nowrap; }
+    .an-calllog-table td:nth-child(2) { color: var(--signal); font-weight: 700; white-space: nowrap; }
+    .an-calllog-table td:nth-child(3) { color: var(--paper-soft); font-size: 10px; max-width: 400px; }
+    .an-calllog-new td { animation: rowflash .6s ease-out; }
+    @keyframes rowflash { from { background: var(--signal-dim); } to { background: transparent; } }
+    /* ── Installed tools roster ── */
+    .an-tools-roster { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-bottom: 20px; }
+    .an-tool-card { background: var(--bg); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; transition: background .1s; }
+    .an-tool-card:hover { background: var(--bg-alt); }
+    .an-tool-header { display: flex; align-items: center; gap: 8px; }
+    .an-tool-icon { font-size: 16px; line-height: 1; flex-shrink: 0; }
+    .an-tool-name { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--paper); }
+    .an-tool-used { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 5px var(--success); margin-left: auto; flex-shrink: 0; }
+    .an-tool-count { font-family: var(--mono); font-size: 9px; color: var(--signal); font-weight: 700; margin-left: auto; }
+    .an-tool-desc { font-family: var(--mono); font-size: 9px; color: var(--paper-dim); line-height: 1.5; letter-spacing: .4px; }
+    @media (max-width: 768px) { .an-tools-roster { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .an-tools-roster { grid-template-columns: 1fr; } }
     /* suppress old analytics widgets */
     #analytics-canvas,.analytics-header,.analytics-sub,.analytics-stats,.analytics-stat,.analytics-chart-card,.analytics-chart-title { display: none !important; }
 
@@ -373,6 +405,9 @@
     .project-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
     .hdr-btn { background: transparent; border: 1px solid var(--rule); color: var(--paper-dim); font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; padding: 6px 12px; cursor: pointer; transition: all .15s; }
     .hdr-btn:hover { border-color: var(--paper-soft); color: var(--paper); }
+    .hdr-btn-danger:hover { border-color: var(--signal); color: var(--signal); }
+    .proj-shared-badge { font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; font-weight: 700; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); padding: 4px 8px; opacity: .8; white-space: nowrap; }
+    .sidebar-shared-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; opacity: .7; }
     .hdr-desktop { }
     .refresh-btn { background: var(--signal); border: none; color: var(--bg); font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; padding: 7px 14px; cursor: pointer; transition: opacity .15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
     .refresh-btn:hover { opacity: .85; } .refresh-btn:disabled { opacity: .35; cursor: default; }
@@ -502,29 +537,69 @@
       .analytics-split { grid-template-columns: 1fr; }
     }
     @media (max-width: 768px) {
-      .hamburger { display: flex; }
-      .tb-nav { display: none; }
-      .tb-status { display: none; }
+      /* ── Topbar ── */
       #topbar { grid-template-columns: auto 1fr auto; }
       .tb-logo { border-right: none; padding: 0 12px; }
+      .tb-nav { display: none; }
+      .tb-desktop { display: none !important; }
+      .hamburger { display: flex; }
+      .tb-status { gap: 8px; padding: 0 10px; }
+      .tb-btn#logout-btn { font-size: 0; padding: 6px 8px; line-height: 1; }
+      .tb-btn#logout-btn::after { content: '↩'; font-size: 13px; }
+      /* ── Prevent horizontal overflow ── */
+      body { overflow-x: hidden; }
+      #main-area { overflow-x: hidden; }
+      .view { overflow-x: hidden; }
+      /* ── Typography scale-down ── */
+      .view-title { font-size: 22px; letter-spacing: -.5px; }
+      .view-head { padding: 14px 14px 10px; }
+      .view-head-row { flex-wrap: wrap; gap: 8px; }
+      .view-subtitle { font-size: 9px; }
+      /* ── Chat ── */
       #chat-right { display: none; }
       #chat-left { border-right: none; }
-      .kanban-board { grid-template-columns: repeat(3, minmax(220px, 1fr)); overflow-x: auto; }
+      #chat-drawer { width: 100%; border-left: none; border-top: 1px solid var(--rule); }
+      /* ── Overview ── */
+      .ov-kpi-strip { flex-wrap: wrap; }
+      .ov-kpi-cell { min-width: calc(50% - 1px); }
+      .ov-grid { grid-template-columns: 1fr; }
+      /* ── Analytics ── */
+      .kpi-strip-6 { grid-template-columns: repeat(2, 1fr); }
+      .analytics-split { grid-template-columns: 1fr; }
+      .grid-12 { grid-template-columns: 1fr !important; }
+      .grid-12 > * { grid-column: 1 !important; }
+      /* ── Projects list ── */
       .projects-grid { grid-template-columns: 1fr; }
       .featured-card { grid-template-columns: 1fr; }
       .feat-right { display: none; }
       .feat-left { flex-direction: row; align-items: center; min-height: 80px; }
-      .kpi-strip-6 { grid-template-columns: repeat(2, 1fr); }
-      .grid-12 { grid-template-columns: repeat(4, 1fr); }
+      /* ── Project detail ── */
+      .project-page { padding: 12px; }
+      .project-header { flex-direction: column; gap: 12px; }
+      .project-name { font-size: 22px !important; letter-spacing: -.4px !important; }
+      .project-actions { flex-wrap: wrap; gap: 6px; }
+      .project-body table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .stat-cards { grid-template-columns: repeat(2, 1fr); }
+      /* ── Overview table ── */
+      .ov-col-about { display: none; }
+      .ov-col-updated { display: none; }
+      /* ── Kanban ── */
+      .kanban-board { grid-template-columns: repeat(3, minmax(200px, 1fr)); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      /* ── Modals ── */
       .modal-overlay { align-items: flex-end; }
       .modal-card { width: 100%; max-width: 100%; max-height: 90vh; }
-      #chat-drawer { width: 100%; border-left: none; border-top: 1px solid var(--rule); }
-      .project-page { padding: 16px; }
-      .project-header { flex-direction: column; }
+      /* ── Login ── */
+      .login-card { width: calc(100vw - 32px); padding: 28px 20px; }
     }
     @media (max-width: 480px) {
-      .ov-kpi-strip { flex-wrap: wrap; }
+      .view-title { font-size: 18px; }
       .stat-cards { grid-template-columns: repeat(2, 1fr); }
+      .ov-kpi-strip { flex-wrap: wrap; }
+      .ov-kpi-cell { min-width: calc(50% - 1px); }
+      .kpi-strip-6 { grid-template-columns: repeat(2, 1fr); }
+      .project-name { font-size: 18px !important; }
+      .project-icon-wrap { font-size: 22px !important; width: 40px !important; height: 40px !important; }
+      #chat-drawer { width: 100vw; }
     }
   </style>
   <style id="custom-css"></style>
@@ -583,10 +658,11 @@
       </button>
       <span id="uptime-display" style="display:none"></span>
       <span class="tb-sync-dot" id="conn-dot"></span>
-      <span id="conn-label" style="color:var(--success);font-family:var(--mono);font-size:10px;letter-spacing:1.2px">SYNC OK</span>
-      <span class="tb-sep"></span>
-      <span style="color:var(--paper);font-family:var(--mono);font-size:10px;letter-spacing:1.2px">USER · <span id="user-label">—</span></span>
-      <button class="tb-btn" id="notif-btn" onclick="toggleNotifications()" title="Notifications">🔔</button>
+      <span id="conn-label" class="tb-desktop" style="color:var(--success);font-family:var(--mono);font-size:10px;letter-spacing:1.2px">SYNC OK</span>
+      <span class="tb-sep tb-desktop"></span>
+      <span class="tb-desktop" style="color:var(--paper);font-family:var(--mono);font-size:10px;letter-spacing:1.2px">USER · <span id="user-label">—</span></span>
+      <button class="tb-btn" id="chat-toggle-btn" onclick="toggleDrawer()" style="display:none">💬 CHAT</button>
+      <button class="tb-btn tb-desktop" id="notif-btn" onclick="toggleNotifications()" title="Notifications">🔔</button>
       <button class="tb-btn" id="logout-btn">LOGOUT</button>
       <!-- hidden compat elements -->
       <div id="user-badge" style="display:none"><div class="user-dot"></div><span></span></div>
@@ -685,8 +761,8 @@
           <div class="gc gc-p" style="grid-column:span 12">
             <div class="gc-label">FIG.04 · PROJECTS · INDEX</div>
             <table class="ov-projects-table">
-              <thead><tr><th style="width:30px">NO</th><th>NAME</th><th>PROMPT</th><th>UPDATED</th><th style="text-align:right">RPRT</th></tr></thead>
-              <tbody id="ov-projects-rows"><tr><td colspan="5" style="color:var(--paper-dim);padding:12px 0;font-family:var(--mono);font-size:10px">No projects yet</td></tr></tbody>
+              <thead><tr><th style="width:30px">NO</th><th style="width:28px"></th><th>NAME</th><th class="ov-col-about">ABOUT</th><th class="ov-col-updated">UPDATED</th><th style="text-align:right;width:36px">RPT</th></tr></thead>
+              <tbody id="ov-projects-rows"><tr><td colspan="6" style="color:var(--paper-dim);padding:12px 0;font-family:var(--mono);font-size:10px">No projects yet</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -699,12 +775,12 @@
         <div class="chat-left-head">
           <div class="chat-head-rule"><span>§02</span> THREAD · OPEN</div>
           <div class="chat-head-actions">
-            <button id="chat-toggle-btn" onclick="toggleDrawer()">💬 CHAT</button>
             <button class="tb-btn" id="clear-btn">CLEAR</button>
             <button class="tb-btn hdr-desktop" onclick="showExportModal()">EXPORT</button>
           </div>
         </div>
-        <div class="messages" id="messages">
+        <div style="position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column">
+          <div class="messages" id="messages">
           <div class="empty" id="empty-state">
             <div class="empty-glyph">◼</div>
             <div class="empty-title">READY</div>
@@ -715,6 +791,8 @@
               <button class="prompt-chip" onclick="sendPromptToChat('Give me a status update')">STATUS</button>
             </div>
           </div>
+        </div>
+          <button id="scroll-to-bottom" onclick="scrollToBottom()" title="Jump to latest">↓</button>
         </div>
         <div class="file-preview-wrap" id="chat-file-preview">
           <div class="file-preview">
@@ -799,6 +877,21 @@
         </div>
         <!-- hidden compat canvas -->
         <canvas id="analytics-canvas" style="display:none"></canvas>
+
+        <!-- FIG.09 · CALL LOG -->
+        <div class="sec-rule" style="margin-top:16px"><span class="sec-rule-no">D</span><span class="sec-rule-label">FIG.09 · TOOL CALL LOG · SESSION</span></div>
+        <div class="chart-card an-calllog-wrap">
+          <table class="analytics-tools-table an-calllog-table">
+            <thead><tr><th style="width:56px">TIME</th><th style="width:150px">TOOL</th><th>INPUT SUMMARY</th></tr></thead>
+            <tbody id="an-calllog-tbody">
+              <tr><td colspan="3" style="color:var(--paper-dim);font-family:var(--mono);font-size:10px;padding:10px 0">No tool calls this session</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- FIG.10 · INSTALLED TOOLS -->
+        <div class="sec-rule" style="margin-top:16px"><span class="sec-rule-no">E</span><span class="sec-rule-label">FIG.10 · INSTALLED TOOLS</span></div>
+        <div id="an-tools-roster" class="an-tools-roster"></div>
       </div>
     </div>
 
@@ -991,6 +1084,16 @@ const drawerEl         = document.getElementById('chat-drawer');
 const drawerMessagesEl = document.getElementById('drawer-messages');
 const drawerInput      = document.getElementById('drawer-input');
 const drawerSendBtn    = document.getElementById('drawer-send-btn');
+
+// ── Scroll-to-bottom button ────────────────────────────────────────────────────
+const scrollBtn = document.getElementById('scroll-to-bottom');
+function scrollToBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+messagesEl.addEventListener('scroll', () => {
+  const atBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 80;
+  scrollBtn.classList.toggle('visible', !atBottom);
+});
 const fileInput        = document.getElementById('file-input');
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -1146,7 +1249,7 @@ socket.on('dashboard_updated', () => {
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function apiRequest(method, path, body) {
-  const opts = { method, headers: { 'X-Dashboard-Password': dashPassword, 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' } };
+  const opts = { method, headers: { 'X-Dashboard-Password': dashPassword, 'X-Dashboard-Username': dashUsername, 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' } };
   if (body !== null && body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
   if (!res.ok) throw new Error(await res.text());
@@ -1198,16 +1301,18 @@ function restoreChatUI() {
 function renderSidebar() {
   const container = document.getElementById('sidebar-projects');
   container.innerHTML = '';
-  projects.forEach(p => {
+  const sorted = [...projects].sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
+  sorted.forEach(p => {
     const item = document.createElement('div');
     item.className = 'sidebar-item' + (currentView === p.key ? ' active' : '');
     item.id = 'nav-' + p.key;
-    item.innerHTML = `<span class="sidebar-icon">${escHtml(p.icon || '📋')}</span><span class="sidebar-item-label">${escHtml(p.name)}</span><button class="proj-refresh" title="Refresh">↻</button><button class="proj-del" title="Delete">✕</button>`;
+    const sharedDot = p._sharedBy ? `<span class="sidebar-shared-dot" title="Shared by ${escHtml(p._sharedBy)}"></span>` : '';
+    item.innerHTML = `<span class="sidebar-icon">${escHtml(p.icon || '📋')}</span><span class="sidebar-item-label">${escHtml(p.name)}</span>${sharedDot}<button class="proj-refresh" title="Refresh">↻</button>${p._sharedBy ? '' : '<button class="proj-del" title="Delete">✕</button>'}`;
     item.addEventListener('click', () => showView(p.key));
     const refBtn = item.querySelector('.proj-refresh');
     refBtn.addEventListener('click', (e) => { e.stopPropagation(); sidebarRefresh(p.key, refBtn); });
     const delBtn = item.querySelector('.proj-del');
-    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteProject(p.key, delBtn); });
+    if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteProject(p.key, delBtn); });
     container.appendChild(item);
   });
   // also refresh projects list if visible
@@ -1274,8 +1379,8 @@ function showView(name) {
   if (name === 'overview') {
     document.getElementById('view-overview').classList.add('active');
     clearBtn.style.display = 'none';
-    toggleBtn.style.display = 'none';
-    closeDrawer();
+    toggleBtn.style.display = 'flex';
+    document.getElementById('drawer-title').textContent = 'ASSISTANT CHAT';
     renderOverviewView();
   } else if (name === 'chat') {
     document.getElementById('view-chat').classList.add('active');
@@ -1287,19 +1392,19 @@ function showView(name) {
   } else if (name === 'analytics') {
     document.getElementById('view-analytics').classList.add('active');
     clearBtn.style.display = 'none';
-    toggleBtn.style.display = 'none';
-    closeDrawer();
+    toggleBtn.style.display = 'flex';
+    document.getElementById('drawer-title').textContent = 'ASSISTANT CHAT';
     renderAnalyticsViewNew();
   } else if (name === 'kanban') {
     document.getElementById('view-kanban').classList.add('active');
     clearBtn.style.display = 'none';
-    toggleBtn.style.display = 'none';
-    closeDrawer();
+    toggleBtn.style.display = 'flex';
+    document.getElementById('drawer-title').textContent = 'ASSISTANT CHAT';
   } else if (name === 'projects-list') {
     document.getElementById('view-projects-list').classList.add('active');
     clearBtn.style.display = 'none';
-    toggleBtn.style.display = 'none';
-    closeDrawer();
+    toggleBtn.style.display = 'flex';
+    document.getElementById('drawer-title').textContent = 'ASSISTANT CHAT';
     renderProjectsListView();
   } else {
     // Project detail
@@ -1354,15 +1459,23 @@ async function renderOverviewView() {
 function renderOvLiveFeed() {
   const el = document.getElementById('ov-live-feed');
   if (!el) return;
-  const msgs = chatMessages.slice(-3).reverse();
+  const msgs = chatMessages.slice(-4).reverse();
   if (!msgs.length) { el.innerHTML = '<span style="font-family:var(--mono);font-size:10px;color:var(--paper-dim)">No messages yet</span>'; return; }
-  el.innerHTML = msgs.map(m => `
-    <div class="ov-feed-msg">
-      <div class="ov-feed-meta" style="color:${m.role==='user'?'var(--signal)':'var(--paper-soft)'}">
-        [${m.role==='user'?'→ USR':'← AI '}]
+  el.innerHTML = msgs.map(m => {
+    let text = (m.text || '').trim();
+    // Strip [Dashboard context: ...] preamble from user messages
+    text = text.replace(/^\[Dashboard context:[^\]]*\]\s*/i, '').trim();
+    // Also strip multi-line context blocks ending with a blank line
+    text = text.replace(/^\[Dashboard context:[\s\S]*?\]\n\n/i, '').trim();
+    const preview = text.slice(0, 72) + (text.length > 72 ? '…' : '');
+    const isUser = m.role === 'user';
+    return `<div class="ov-feed-msg">
+      <div class="ov-feed-meta" style="color:${isUser?'var(--signal)':'var(--paper-soft)'}">
+        [${isUser?'→ YOU':'← AI '}]
       </div>
-      <div class="ov-feed-text">${escHtml((m.text||'').slice(0,80))}${(m.text||'').length>80?'…':''}</div>
-    </div>`).join('');
+      <div class="ov-feed-text">${escHtml(preview)}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderOvToolsList() {
@@ -1389,15 +1502,18 @@ function renderOvToolsList() {
 function renderOvProjectsTable() {
   const el = document.getElementById('ov-projects-rows');
   if (!el) return;
-  if (!projects.length) { el.innerHTML = '<tr><td colspan="5" style="color:var(--paper-dim);padding:12px 0;font-family:var(--mono);font-size:10px">No projects yet</td></tr>'; return; }
-  el.innerHTML = projects.map((p, i) => {
+  if (!projects.length) { el.innerHTML = '<tr><td colspan="6" style="color:var(--paper-dim);padding:12px 0;font-family:var(--mono);font-size:10px">No projects yet</td></tr>'; return; }
+  const sortedOv = [...projects].sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
+  el.innerHTML = sortedOv.map((p, i) => {
     const cached = projectCache[p.key];
+    const about = briefPrompt(p.prompt, 72);
     return `<tr onclick="showView('${escHtml(p.key)}')">
       <td style="color:var(--signal);font-weight:700">${String(i+1).padStart(2,'0')}</td>
+      <td style="font-size:15px;line-height:1;padding:6px 4px 6px 0">${escHtml(p.icon||'📋')}</td>
       <td style="font-weight:600">${escHtml(p.name.toUpperCase())}</td>
-      <td style="color:var(--paper-soft);font-style:italic">"${escHtml(p.prompt||'—')}"</td>
-      <td style="color:var(--paper-soft)">${escHtml(cached?cached.meta:'—')}</td>
-      <td style="text-align:right">${cached?'1':'0'}</td>
+      <td class="ov-col-about" style="color:var(--paper-dim)">${escHtml(about)}</td>
+      <td class="ov-col-updated" style="color:var(--paper-soft)">${escHtml(cached?cached.meta:'—')}</td>
+      <td style="text-align:right;color:${cached?'var(--success)':'var(--paper-dim)'}">${cached?'✓':'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -1461,6 +1577,8 @@ async function renderAnalyticsViewNew() {
     drawHeatmapSvg(data);
     // tools
     renderAnalyticsToolsTable();
+    renderAnalyticsCallLog();
+    renderInstalledTools();
   } catch (e) { console.error('analytics:', e); }
 }
 
@@ -1513,6 +1631,93 @@ function renderAnalyticsToolsTable() {
   </tr>`).join('');
 }
 
+// ── Analytics: call log + installed tools ─────────────────────────────────────
+
+const INSTALLED_TOOLS = [
+  { key: 'web_search',              icon: '🔍', label: 'Web Search',    desc: 'Search the web for real-time information and current events' },
+  { key: 'web_fetch',               icon: '🌐', label: 'Web Fetch',     desc: 'Fetch and read content from a specific URL' },
+  { key: 'bash',                    icon: '⌨️', label: 'Bash',          desc: 'Execute shell commands, scripts, and terminal operations' },
+  { key: 'read',                    icon: '📖', label: 'Read File',     desc: 'Read files from the local filesystem' },
+  { key: 'write',                   icon: '✍️', label: 'Write File',    desc: 'Write or create new files on disk' },
+  { key: 'str_replace',             icon: '✂️', label: 'Edit File',     desc: 'Precise string replacement and inline file editing' },
+  { key: 'glob',                    icon: '🔎', label: 'Glob',          desc: 'Find files matching a pattern recursively' },
+  { key: 'grep',                    icon: '🔬', label: 'Grep',          desc: 'Search file contents with regex patterns' },
+  { key: 'todo',                    icon: '✅', label: 'Task List',     desc: 'Create and manage structured task lists' },
+  { key: 'ls',                      icon: '📁', label: 'List Dir',      desc: 'List directory contents and file metadata' },
+  { key: 'task',                    icon: '🤖', label: 'Sub-Agent',     desc: 'Spawn specialized sub-agents for complex tasks' },
+  { key: 'multiedit',               icon: '🗂️', label: 'Multi-Edit',   desc: 'Apply multiple edits to a file in one operation' },
+  { key: 'notebook',                icon: '📓', label: 'Notebook',      desc: 'Read and edit Jupyter notebook cells' },
+  { key: 'semantic',                icon: '🧠', label: 'Semantic Search', desc: 'Search codebase by meaning and intent' },
+  { key: 'readlints',               icon: '🪲', label: 'Lint Check',    desc: 'Read linter errors and diagnostics for files' },
+];
+
+function _toolMatchKey(usedName, cardKey) {
+  const u = usedName.toLowerCase().replace(/[-_\s]/g, '');
+  const k = cardKey.toLowerCase().replace(/[-_\s]/g, '');
+  return u.includes(k) || k.includes(u);
+}
+
+function renderAnalyticsCallLog() {
+  const el = document.getElementById('an-calllog-tbody');
+  if (!el) return;
+  if (!recentToolCalls.length) {
+    el.innerHTML = `<tr><td colspan="3" style="color:var(--paper-dim);font-family:var(--mono);font-size:10px;padding:12px 12px">No tool calls this session</td></tr>`;
+    return;
+  }
+  el.innerHTML = recentToolCalls.map((t, i) => {
+    let inputStr = '';
+    if (typeof t.input === 'string') {
+      inputStr = t.input;
+    } else if (t.input && typeof t.input === 'object') {
+      const vals = Object.values(t.input);
+      inputStr = vals.map(v => typeof v === 'string' ? v : JSON.stringify(v)).join(' · ');
+    }
+    // Trim and clean the input preview
+    inputStr = inputStr.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (inputStr.length > 120) inputStr = inputStr.slice(0, 118) + '…';
+    return `<tr${i === 0 ? ' class="an-calllog-new"' : ''}>
+      <td>${escHtml(t.when || '—')}</td>
+      <td>${escHtml(t.tool)}</td>
+      <td>${escHtml(inputStr || '—')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderInstalledTools() {
+  const el = document.getElementById('an-tools-roster');
+  if (!el) return;
+  const usedCounts = {};
+  recentToolCalls.forEach(t => {
+    usedCounts[t.tool] = (usedCounts[t.tool] || 0) + 1;
+  });
+  // Find any session-used tools not in the static list and add them dynamically
+  const knownKeys = new Set(INSTALLED_TOOLS.map(t => t.key));
+  const dynamicTools = [];
+  Object.keys(usedCounts).forEach(toolName => {
+    const matched = INSTALLED_TOOLS.some(t => _toolMatchKey(toolName, t.key));
+    if (!matched) dynamicTools.push({ key: toolName, icon: '🔧', label: toolName, desc: 'Invoked this session' });
+  });
+  const allTools = [...INSTALLED_TOOLS, ...dynamicTools];
+  el.innerHTML = allTools.map(t => {
+    // Find session count for this tool
+    let count = 0;
+    Object.entries(usedCounts).forEach(([name, n]) => {
+      if (_toolMatchKey(name, t.key)) count += n;
+    });
+    const usedIndicator = count > 0
+      ? `<span class="an-tool-count">${count}×</span>`
+      : `<span style="width:6px;height:6px;border-radius:50%;background:var(--rule);display:inline-block;margin-left:auto;flex-shrink:0"></span>`;
+    return `<div class="an-tool-card">
+      <div class="an-tool-header">
+        <span class="an-tool-icon">${t.icon}</span>
+        <span class="an-tool-name">${escHtml(t.label)}</span>
+        ${usedIndicator}
+      </div>
+      <div class="an-tool-desc">${escHtml(t.desc)}</div>
+    </div>`;
+  }).join('');
+}
+
 // ── Projects list view ────────────────────────────────────────────────────────
 function renderProjectsListView() {
   renderFeaturedProject();
@@ -1551,7 +1756,8 @@ function renderProjectsGrid() {
   if (!gridEl) return;
   const accents = ['var(--signal)', 'var(--paper)', 'var(--success)', 'var(--warn)', 'var(--info)'];
   gridEl.innerHTML = '';
-  projects.forEach((p, i) => {
+  const sortedGrid = [...projects].sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
+  sortedGrid.forEach((p, i) => {
     const accent = accents[i % accents.length];
     const cached = projectCache[p.key];
     const row = document.createElement('div');
@@ -1833,7 +2039,7 @@ fileInput.addEventListener('change', async () => {
   previewThumb.innerHTML = '⏳';
   try {
     const fd = new FormData(); fd.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', headers: { 'X-Dashboard-Password': dashPassword, 'ngrok-skip-browser-warning': '1' }, body: fd });
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'X-Dashboard-Password': dashPassword, 'X-Dashboard-Username': dashUsername, 'ngrok-skip-browser-warning': '1' }, body: fd });
     if (!res.ok) throw new Error(await res.text());
     const { url, name, mime } = await res.json();
     pendingFileUpload = { source, url, name, mime };
@@ -1849,9 +2055,55 @@ function clearFilePreview(source) {
 
 // ── Share ─────────────────────────────────────────────────────────────────────
 function shareProject(key) {
+  copyProjectLink(key);
+}
+function copyProjectLink(key) {
   const url = `${location.origin}/p/${key}`;
-  if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => showToast('Link copied! 🔗'));
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => showToast('LINK COPIED'));
   else prompt('Copy this link:', url);
+}
+
+// ── Share-with-users modal ─────────────────────────────────────────────────────
+async function openShareUsersModal(key) {
+  const proj = projects.find(p => p.key === key);
+  if (!proj) return;
+  let allUsers = [];
+  try { allUsers = await apiRequest('GET', '/api/users', null); } catch {}
+  const otherUsers = allUsers.filter(u => u !== dashUsername);
+  if (!otherUsers.length) { showToast('NO OTHER USERS TO SHARE WITH'); return; }
+  const current = Array.isArray(proj.sharedWith) ? proj.sharedWith : [];
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--bg-alt);border:1px solid var(--rule);padding:28px 28px 24px;min-width:280px;max-width:400px;width:90%';
+  card.innerHTML = `
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1.4px;color:var(--paper-dim);margin-bottom:16px;text-transform:uppercase">SHARE · ${escHtml(proj.name)}</div>
+    <div id="share-users-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      ${otherUsers.map(u => `
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--paper)">
+          <input type="checkbox" value="${escHtml(u)}" ${current.includes(u)?'checked':''} style="accent-color:var(--accent);width:14px;height:14px">
+          ${escHtml(u)}
+        </label>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="this.closest('[data-share-overlay]').remove()" style="font-family:var(--mono);font-size:10px;letter-spacing:1.2px;padding:6px 16px;background:none;border:1px solid var(--rule);color:var(--paper-dim);cursor:pointer;text-transform:uppercase">CANCEL</button>
+      <button id="share-save-btn" style="font-family:var(--mono);font-size:10px;letter-spacing:1.2px;padding:6px 16px;background:var(--accent);border:1px solid var(--accent);color:#000;cursor:pointer;font-weight:700;text-transform:uppercase">SAVE</button>
+    </div>`;
+  overlay.dataset.shareOverlay = '1';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  card.querySelector('#share-save-btn').addEventListener('click', async () => {
+    const checked = [...card.querySelectorAll('#share-users-list input:checked')].map(el => el.value);
+    try {
+      await apiRequest('POST', `/api/projects/${key}/share`, { sharedWith: checked });
+      await fetchProjects();
+      overlay.remove();
+      showToast(checked.length ? `SHARED WITH ${checked.join(', ').toUpperCase()}` : 'SHARING REMOVED');
+    } catch (e) { showToast('ERROR: ' + e.message); }
+  });
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1902,8 +2154,14 @@ function renderProjectView(proj) {
           </div>
         </div>
         <div class="project-actions">
-          <button class="hdr-btn" onclick="shareProject('${escHtml(proj.key)}')">SHARE</button>
+          ${proj._sharedBy
+            ? `<span class="proj-shared-badge">SHARED · ${escHtml(proj._sharedBy)}</span>`
+            : `<button class="hdr-btn" onclick="openShareUsersModal('${escHtml(proj.key)}')">SHARE</button>`}
+          <button class="hdr-btn" onclick="copyProjectLink('${escHtml(proj.key)}')">COPY LINK</button>
           <button class="hdr-btn" onclick="openEditModal('${escHtml(proj.key)}')">EDIT</button>
+          ${proj._sharedBy
+            ? `<button class="hdr-btn hdr-btn-danger" disabled style="opacity:.4;cursor:not-allowed" title="Only the owner can delete">DELETE</button>`
+            : `<button class="hdr-btn hdr-btn-danger" id="del-btn-${escHtml(proj.key)}">DELETE</button>`}
           <button class="refresh-btn" id="btn-${escHtml(proj.key)}" onclick="refreshProject('${escHtml(proj.key)}')">
             ${REFRESH_ICON} GET LATEST
           </button>
@@ -1921,6 +2179,9 @@ function renderProjectView(proj) {
       }
     });
   }
+  // Wire delete button on project page (owner-only)
+  const delPageBtn = document.getElementById(`del-btn-${proj.key}`);
+  if (delPageBtn) delPageBtn.addEventListener('click', () => deleteProject(proj.key, delPageBtn));
 }
 
 function refreshProject(projectKey) {
@@ -1967,9 +2228,10 @@ socket.on('typing', ({ isTyping }) => {
 socket.on('tool_use', ({ tool, input }) => {
   // Track for rail and overview
   recentToolCalls.unshift({ tool, input, when: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) });
-  if (recentToolCalls.length > 10) recentToolCalls.pop();
+  if (recentToolCalls.length > 50) recentToolCalls.pop();
   renderRailTools();
   if (currentView === 'overview') renderOvToolsList();
+  if (currentView === 'analytics') { renderAnalyticsToolsTable(); renderAnalyticsCallLog(); renderInstalledTools(); }
 
   if (pendingSource !== 'chat') return;
   const inputStr = typeof input === 'string' ? input : JSON.stringify(input, null, 2);

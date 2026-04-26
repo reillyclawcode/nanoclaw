@@ -158,19 +158,27 @@ export class WebChannel implements Channel {
     return new Set(this.authedSockets.keys());
   }
 
-  // Auto-register the web group in-memory + DB if not already registered
+  // Auto-register the web group in-memory + DB, always updating containerConfig
   private ensureGroupRegistered(): void {
     const groups = this.opts.registeredGroups();
-    if (groups[WEB_JID]) return;
-
     const assistantName =
       readEnvFile(['ASSISTANT_NAME'])['ASSISTANT_NAME'] || 'Andy';
+    const existing = groups[WEB_JID];
     const group: RegisteredGroup = {
       name: 'Web Dashboard',
       folder: 'web-dashboard',
       trigger: `@${assistantName}`,
-      added_at: new Date().toISOString(),
+      added_at: existing?.added_at ?? new Date().toISOString(),
       requiresTrigger: false,
+      containerConfig: {
+        additionalMounts: [
+          {
+            hostPath: path.join(this.projectRoot, 'dashboard', 'public'),
+            containerPath: 'dashboard-public',
+            readonly: false,
+          },
+        ],
+      },
     };
 
     groups[WEB_JID] = group;
@@ -241,17 +249,19 @@ export class WebChannel implements Channel {
     const dataDir = path.join(this.projectRoot, 'data');
     fs.mkdirSync(dataDir, { recursive: true });
 
+    // Legacy shared-file paths — kept only for one-time migration
     const projectsFile = path.join(dataDir, 'projects.json');
     const chatFile = path.join(dataDir, 'web-chat-history.json');
     const reportsFile = path.join(dataDir, 'project-reports.json');
     const analyticsFile = path.join(dataDir, 'analytics.json');
     const kanbanFile = path.join(dataDir, 'kanban.json');
     const customCssFile = path.join(dataDir, 'dashboard-custom.css');
-    const threadsDir = path.join(dataDir, 'threads');
-    const threadsIndexFile = path.join(threadsDir, 'index.json');
     const uploadsDir = path.join(dataDir, 'uploads');
-    fs.mkdirSync(threadsDir, { recursive: true });
     fs.mkdirSync(uploadsDir, { recursive: true });
+
+    // Per-user data directory
+    const usersDir = path.join(dataDir, 'users');
+    fs.mkdirSync(usersDir, { recursive: true });
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -279,29 +289,160 @@ export class WebChannel implements Channel {
     const writeJson = (file: string, data: unknown): void =>
       fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-    const loadChat = (): ChatMsg[] => loadJson<ChatMsg[]>(chatFile, []);
-    const appendChat = (msg: ChatMsg): void => {
-      const history = loadChat();
-      history.push(msg);
-      fs.writeFileSync(chatFile, JSON.stringify(history.slice(-CHAT_MAX_MSGS)));
+    // ── Per-user data helpers ─────────────────────────────────────────────────
+
+    // Primary user is the first entry in WEB_USERS (gets migrated from legacy files)
+    const primaryUser = Object.keys(this.users)[0] ?? 'user';
+
+    const userDataDir = (username: string): string => {
+      const dir = path.join(usersDir, username);
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    };
+    const userProjectsFile = (u: string) =>
+      path.join(userDataDir(u), 'projects.json');
+    const userChatFile = (u: string) =>
+      path.join(userDataDir(u), 'chat-history.json');
+    const userReportsFile = (u: string) =>
+      path.join(userDataDir(u), 'project-reports.json');
+    const userThreadsDir = (u: string): string => {
+      const dir = path.join(userDataDir(u), 'threads');
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    };
+    const userThreadsIndexFile = (u: string) =>
+      path.join(userThreadsDir(u), 'index.json');
+    const userThreadFile = (u: string, id: string) =>
+      path.join(userThreadsDir(u), `${id}.json`);
+
+    // One-time migration: copy legacy shared files → primary user on first access
+    const ensureUserMigrated = (username: string): void => {
+      if (username !== primaryUser) return;
+      const pf = userProjectsFile(username);
+      if (!fs.existsSync(pf) && fs.existsSync(projectsFile))
+        fs.copyFileSync(projectsFile, pf);
+      const cf = userChatFile(username);
+      if (!fs.existsSync(cf) && fs.existsSync(chatFile))
+        fs.copyFileSync(chatFile, cf);
+      const rf = userReportsFile(username);
+      if (!fs.existsSync(rf) && fs.existsSync(reportsFile))
+        fs.copyFileSync(reportsFile, rf);
+      const oldThreadsIdx = path.join(dataDir, 'threads', 'index.json');
+      const newThreadsIdx = userThreadsIndexFile(username);
+      if (!fs.existsSync(newThreadsIdx) && fs.existsSync(oldThreadsIdx)) {
+        try {
+          fs.cpSync(path.join(dataDir, 'threads'), userThreadsDir(username), {
+            recursive: true,
+          });
+        } catch { /* non-fatal */ }
+      }
     };
 
-    const loadReports = () =>
-      loadJson<Record<string, unknown>>(reportsFile, {});
-    const saveReport = (key: string, data: unknown): void => {
-      const reports = loadReports();
-      reports[key] = data;
-      writeJson(reportsFile, reports);
+    // Broadcast helpers
+    const broadcastProjectsUpdated = (): void => {
+      for (const sid of this.authedSocketIds)
+        this.io?.to(sid).emit('projects_updated');
+    };
+    const broadcastReportUpdated = (key: string): void => {
       for (const sid of this.authedSocketIds)
         this.io?.to(sid).emit('report_updated', { key });
     };
 
-    const loadProjects = () =>
-      loadJson<object[]>(projectsFile, DEFAULT_PROJECTS);
-    const saveProjects = (projects: object[]): void => {
-      writeJson(projectsFile, projects);
-      for (const sid of this.authedSocketIds)
-        this.io?.to(sid).emit('projects_updated');
+    // Load a user's own projects only (no shared)
+    const loadOwnProjects = (username: string): any[] => {
+      ensureUserMigrated(username);
+      return loadJson<any[]>(userProjectsFile(username), []);
+    };
+
+    // Save a user's own projects and broadcast
+    const saveOwnProjects = (username: string, projects: object[]): void => {
+      ensureUserMigrated(username);
+      writeJson(userProjectsFile(username), projects);
+      broadcastProjectsUpdated();
+    };
+
+    // Load all projects visible to a user (own + shared-with-me)
+    const loadUserProjects = (username: string): any[] => {
+      const own = loadOwnProjects(username);
+      const merged: any[] = [...own];
+      for (const other of Object.keys(this.users)) {
+        if (other === username) continue;
+        ensureUserMigrated(other);
+        const others = loadJson<any[]>(userProjectsFile(other), []);
+        for (const p of others) {
+          if (Array.isArray(p.sharedWith) && p.sharedWith.includes(username)) {
+            merged.push({ ...p, _sharedBy: other });
+          }
+        }
+      }
+      return merged;
+    };
+
+    // Find which user owns a project key
+    const findProjectOwner = (key: string): [string, any[]] | null => {
+      for (const u of Object.keys(this.users)) {
+        ensureUserMigrated(u);
+        const projs = loadJson<any[]>(userProjectsFile(u), []);
+        if (projs.some((p: any) => p.key === key)) return [u, projs];
+      }
+      return null;
+    };
+
+    // Reports helpers (scoped to project owner's file)
+    const loadOwnReports = (username: string): Record<string, unknown> => {
+      ensureUserMigrated(username);
+      return loadJson<Record<string, unknown>>(userReportsFile(username), {});
+    };
+
+    const loadUserReports = (username: string): Record<string, unknown> => {
+      const own = loadOwnReports(username);
+      const result: Record<string, unknown> = { ...own };
+      // Include reports for projects shared with me
+      for (const other of Object.keys(this.users)) {
+        if (other === username) continue;
+        ensureUserMigrated(other);
+        const otherProjs = loadJson<any[]>(userProjectsFile(other), []);
+        const otherReports = loadOwnReports(other);
+        for (const p of otherProjs) {
+          if (Array.isArray(p.sharedWith) && p.sharedWith.includes(username)) {
+            if (p.key in otherReports) result[p.key] = otherReports[p.key];
+          }
+        }
+      }
+      return result;
+    };
+
+    const saveProjectReport = (
+      key: string,
+      data: unknown,
+      requestingUser: string,
+    ): void => {
+      // Save to owner's reports file
+      let ownerUser = requestingUser;
+      const ownProjs = loadJson<any[]>(userProjectsFile(requestingUser), []);
+      if (!ownProjs.some((p: any) => p.key === key)) {
+        const found = findProjectOwner(key);
+        if (found) ownerUser = found[0];
+      }
+      const reports = loadOwnReports(ownerUser);
+      reports[key] = data;
+      writeJson(userReportsFile(ownerUser), reports);
+      broadcastReportUpdated(key);
+    };
+
+    // Chat helpers (per user)
+    const loadUserChat = (username: string): ChatMsg[] => {
+      ensureUserMigrated(username);
+      return loadJson<ChatMsg[]>(userChatFile(username), []);
+    };
+    const appendUserChat = (username: string, msg: ChatMsg): void => {
+      ensureUserMigrated(username);
+      const history = loadUserChat(username);
+      history.push(msg);
+      fs.writeFileSync(
+        userChatFile(username),
+        JSON.stringify(history.slice(-CHAT_MAX_MSGS)),
+      );
     };
 
     const loadCustomCss = (): string => {
@@ -329,13 +470,6 @@ export class WebChannel implements Channel {
       writeJson(analyticsFile, data);
     };
 
-    // Threads
-    const loadThreadsIndex = (): ThreadMeta[] =>
-      loadJson<ThreadMeta[]>(threadsIndexFile, []);
-    const saveThreadsIndex = (list: ThreadMeta[]): void =>
-      writeJson(threadsIndexFile, list);
-    const threadFile = (id: string) => path.join(threadsDir, `${id}.json`);
-
     // ── Auth middleware ───────────────────────────────────────────────────────
     const requireRestAuth = (
       req: express.Request,
@@ -358,8 +492,9 @@ export class WebChannel implements Channel {
         return;
       }
       const pw = req.headers['x-dashboard-password'] as string;
-      const valid = Object.values(this.users).some((p) => p === pw);
-      if (!valid) {
+      // Reverse-lookup username from password so every endpoint knows who's calling
+      const found = Object.entries(this.users).find(([, p]) => p === pw);
+      if (!found) {
         const result = recordFailedAttempt(ip);
         logger.warn(
           { ip, blocked: result.blocked },
@@ -368,6 +503,7 @@ export class WebChannel implements Channel {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
+      res.locals.dashUser = found[0];
       clearAttempts(ip);
       next();
     };
@@ -410,87 +546,140 @@ export class WebChannel implements Channel {
     );
 
     // ── Projects API ──────────────────────────────────────────────────────────
-    app.get('/api/projects', requireRestAuth, (_req, res) => {
-      res.json(loadProjects());
+    app.get('/api/projects', requireRestAuth, (req, res) => {
+      res.json(loadUserProjects(res.locals.dashUser as string));
     });
     app.post('/api/projects', requireRestAuth, (req, res) => {
-      const projects = loadProjects() as any[];
+      const username = res.locals.dashUser as string;
+      const projects = loadOwnProjects(username);
       const project = { ...req.body, key: Date.now().toString(36) };
       projects.push(project);
-      saveProjects(projects);
+      saveOwnProjects(username, projects);
       res.json(project);
     });
     app.put('/api/projects/:key', requireRestAuth, (req, res) => {
-      const projects = loadProjects() as any[];
-      const i = projects.findIndex((p: any) => p.key === req.params.key);
-      if (i < 0) {
+      const username = res.locals.dashUser as string;
+      const key = Array.isArray(req.params.key) ? req.params.key[0] : req.params.key;
+      // Check own projects first
+      const ownProjects = loadOwnProjects(username);
+      const ownIdx = ownProjects.findIndex((p: any) => p.key === key);
+      if (ownIdx >= 0) {
+        ownProjects[ownIdx] = { ...req.body, key };
+        saveOwnProjects(username, ownProjects);
+        res.json(ownProjects[ownIdx]);
+        return;
+      }
+      // Check shared projects — update in owner's file
+      const ownerEntry = findProjectOwner(key);
+      if (!ownerEntry) {
         res.status(404).json({ error: 'Not found' });
         return;
       }
-      projects[i] = { ...req.body, key: req.params.key };
-      saveProjects(projects);
-      res.json(projects[i]);
+      const [owner, ownerProjects] = ownerEntry;
+      const existing = ownerProjects.find((p: any) => p.key === key);
+      if (!Array.isArray(existing?.sharedWith) || !existing.sharedWith.includes(username)) {
+        res.status(403).json({ error: 'Not authorized' });
+        return;
+      }
+      // Preserve sharedWith — only owner can change it via /share endpoint
+      const updated = { ...req.body, key, sharedWith: existing.sharedWith };
+      const newOwnerProjects = ownerProjects.map((p: any) =>
+        p.key === key ? updated : p,
+      );
+      saveOwnProjects(owner, newOwnerProjects);
+      res.json(updated);
     });
     app.delete('/api/projects/:key', requireRestAuth, (req, res) => {
-      saveProjects(
-        (loadProjects() as any[]).filter((p: any) => p.key !== req.params.key),
-      );
+      const username = res.locals.dashUser as string;
+      const key = req.params.key;
+      const ownProjects = loadOwnProjects(username);
+      if (!ownProjects.some((p: any) => p.key === key)) {
+        res.status(403).json({ error: 'Only the project owner can delete a project' });
+        return;
+      }
+      saveOwnProjects(username, ownProjects.filter((p: any) => p.key !== key));
       res.json({ ok: true });
     });
 
+    // Share a project with other users: POST /api/projects/:key/share
+    // Body: { sharedWith: ["cyrena"] }  — replaces the entire sharedWith list
+    app.post('/api/projects/:key/share', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
+      const key = req.params.key;
+      const ownProjects = loadOwnProjects(username);
+      const idx = ownProjects.findIndex((p: any) => p.key === key);
+      if (idx < 0) {
+        res.status(403).json({ error: 'Only the project owner can share a project' });
+        return;
+      }
+      const sharedWith: string[] = Array.isArray(req.body?.sharedWith)
+        ? req.body.sharedWith
+        : [];
+      ownProjects[idx] = { ...ownProjects[idx], sharedWith };
+      saveOwnProjects(username, ownProjects);
+      res.json(ownProjects[idx]);
+    });
+
     // ── Project reports API ───────────────────────────────────────────────────
-    app.get('/api/project-reports', requireRestAuth, (_req, res) => {
-      res.json(loadReports());
+    app.get('/api/project-reports', requireRestAuth, (req, res) => {
+      res.json(loadUserReports(res.locals.dashUser as string));
     });
     app.post('/api/project-reports/:key', requireRestAuth, (req, res) => {
       const key = Array.isArray(req.params.key)
         ? req.params.key[0]
         : req.params.key;
-      saveReport(key, req.body);
+      saveProjectReport(key, req.body, res.locals.dashUser as string);
       res.json({ ok: true });
     });
 
     // ── Chat history API ──────────────────────────────────────────────────────
-    app.get('/api/chat', requireRestAuth, (_req, res) => {
-      res.json(loadChat());
+    app.get('/api/chat', requireRestAuth, (req, res) => {
+      res.json(loadUserChat(res.locals.dashUser as string));
     });
-    app.delete('/api/chat', requireRestAuth, (_req, res) => {
+    app.delete('/api/chat', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
       try {
-        fs.writeFileSync(chatFile, '[]');
+        ensureUserMigrated(username);
+        fs.writeFileSync(userChatFile(username), '[]');
       } catch {}
       res.json({ ok: true });
     });
 
     // ── Threads API ───────────────────────────────────────────────────────────
-    app.get('/api/threads', requireRestAuth, (_req, res) => {
-      res.json(loadThreadsIndex());
+    app.get('/api/threads', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
+      ensureUserMigrated(username);
+      res.json(loadJson<ThreadMeta[]>(userThreadsIndexFile(username), []));
     });
 
     // Archive current chat as a new named thread
     app.post('/api/threads', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
+      ensureUserMigrated(username);
       const title = req.body?.title || `Thread ${Date.now()}`;
       const id =
         Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const now = new Date().toISOString();
-      // Save current chat to new thread file
-      const current = loadChat();
-      fs.writeFileSync(threadFile(id), JSON.stringify(current));
-      // Update index
-      const list = loadThreadsIndex();
+      const current = loadUserChat(username);
+      fs.writeFileSync(userThreadFile(username, id), JSON.stringify(current));
+      const list = loadJson<ThreadMeta[]>(userThreadsIndexFile(username), []);
       list.unshift({ id, title, createdAt: now, updatedAt: now });
-      saveThreadsIndex(list);
+      writeJson(userThreadsIndexFile(username), list);
       res.json({ id, title, createdAt: now, updatedAt: now });
     });
 
     app.get('/api/threads/:id', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
       const id = req.params.id as string;
-      const messages = loadJson<ChatMsg[]>(threadFile(id), []);
+      const messages = loadJson<ChatMsg[]>(userThreadFile(username, id), []);
       res.json(messages);
     });
 
     app.put('/api/threads/:id', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
       const id = req.params.id as string;
-      const list = loadThreadsIndex();
+      ensureUserMigrated(username);
+      const list = loadJson<ThreadMeta[]>(userThreadsIndexFile(username), []);
       const t = list.find((x) => x.id === id);
       if (!t) {
         res.status(404).json({ error: 'Not found' });
@@ -498,16 +687,19 @@ export class WebChannel implements Channel {
       }
       if (req.body?.title) t.title = req.body.title;
       t.updatedAt = new Date().toISOString();
-      saveThreadsIndex(list);
+      writeJson(userThreadsIndexFile(username), list);
       res.json(t);
     });
 
     app.delete('/api/threads/:id', requireRestAuth, (req, res) => {
+      const username = res.locals.dashUser as string;
       const id = req.params.id as string;
+      ensureUserMigrated(username);
       try {
-        fs.unlinkSync(threadFile(id));
+        fs.unlinkSync(userThreadFile(username, id));
       } catch {}
-      saveThreadsIndex(loadThreadsIndex().filter((x) => x.id !== id));
+      const list = loadJson<ThreadMeta[]>(userThreadsIndexFile(username), []);
+      writeJson(userThreadsIndexFile(username), list.filter((x) => x.id !== id));
       res.json({ ok: true });
     });
 
@@ -571,13 +763,14 @@ export class WebChannel implements Channel {
       const key = Array.isArray(req.params.key)
         ? req.params.key[0]
         : req.params.key;
-      const projects = loadProjects() as any[];
-      const project = projects.find((p: any) => p.key === key);
-      if (!project) {
+      const ownerEntry = findProjectOwner(key);
+      if (!ownerEntry) {
         res.status(404).json({ error: 'Project not found' });
         return;
       }
-      const reports = loadReports();
+      const [owner, ownerProjects] = ownerEntry;
+      const project = ownerProjects.find((p: any) => p.key === key);
+      const reports = loadOwnReports(owner);
       const report = (reports[key] as any) || null;
       res.json({ project, report });
     });
@@ -698,7 +891,7 @@ export class WebChannel implements Channel {
           this.opts.onMessage(WEB_JID, msg);
 
           socket.emit('user_message', { text: content, timestamp: Date.now() });
-          appendChat({ role: 'user', who, text: content, ts: Date.now() });
+          appendUserChat(who, { role: 'user', who, text: content, ts: Date.now() });
           trackAnalytic('sent');
 
           logger.debug(
@@ -756,17 +949,30 @@ export class WebChannel implements Channel {
     }
     try {
       const dataDir = path.join(this.projectRoot, 'data');
-      const chatFile = path.join(dataDir, 'web-chat-history.json');
       const analyticsFile = path.join(dataDir, 'analytics.json');
-      const history: any[] = (() => {
+
+      // Append assistant reply to each currently connected user's chat history
+      const activeUsers = new Set(this.authedSockets.values());
+      for (const username of activeUsers) {
+        const userChatPath = path.join(
+          dataDir,
+          'users',
+          username,
+          'chat-history.json',
+        );
         try {
-          return JSON.parse(fs.readFileSync(chatFile, 'utf8'));
-        } catch {
-          return [];
-        }
-      })();
-      history.push({ role: 'assistant', who: 'NanoClaw', text: trimmed, ts });
-      fs.writeFileSync(chatFile, JSON.stringify(history.slice(-CHAT_MAX_MSGS)));
+          fs.mkdirSync(path.dirname(userChatPath), { recursive: true });
+          let history: any[] = [];
+          try {
+            history = JSON.parse(fs.readFileSync(userChatPath, 'utf8'));
+          } catch { /* start fresh */ }
+          history.push({ role: 'assistant', who: 'NanoClaw', text: trimmed, ts });
+          fs.writeFileSync(
+            userChatPath,
+            JSON.stringify(history.slice(-CHAT_MAX_MSGS)),
+          );
+        } catch { /* non-fatal per-user write failure */ }
+      }
 
       const date = new Date().toISOString().slice(0, 10);
       const analytics: any = (() => {

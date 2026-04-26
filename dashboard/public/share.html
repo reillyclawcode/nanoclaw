@@ -5,171 +5,247 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NanoClaw · Project</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:        #0c0e13;
-      --card:      #10131a;
-      --border:    rgba(255,255,255,0.07);
-      --accent:    #4f8ef7;
-      --text:      #dde2f0;
-      --text-dim:  rgba(221,226,240,0.4);
-      --text-mid:  rgba(221,226,240,0.65);
-      --success:   #3ecf7a;
+      --bg:         #0e0e0e;
+      --bg-alt:     #161616;
+      --bg-deep:    #080808;
+      --paper:      #e8e8e6;
+      --paper-soft: rgba(232,232,230,0.62);
+      --paper-dim:  rgba(232,232,230,0.36);
+      --rule:       rgba(232,232,230,0.16);
+      --rule-soft:  rgba(232,232,230,0.08);
+      --signal:     #ff3b30;
+      --signal-dim: rgba(255,59,48,0.18);
+      --success:    #7ab06a;
+      --warn:       #e8b04a;
+      --info:       #5b9bb5;
+      --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      --sans: 'Inter', 'Helvetica Neue', -apple-system, sans-serif;
+      /* compat aliases */
+      --accent: #ff3b30;
+      --border: rgba(232,232,230,0.16);
+      --text: #e8e8e6;
+      --text-dim: rgba(232,232,230,0.36);
+      --text-mid: rgba(232,232,230,0.62);
     }
-    html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; }
+    html, body { min-height: 100%; background: var(--bg); color: var(--paper); font-family: var(--sans); font-size: 13px; line-height: 1.5; }
+    ::-webkit-scrollbar { width: 2px; height: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--rule); }
 
-    /* ── Top bar ── */
-    .topbar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 28px; border-bottom: 1px solid var(--border);
-      background: var(--card); position: sticky; top: 0; z-index: 10;
+    /* ── Topbar ── */
+    #topbar {
+      height: 44px; display: grid; grid-template-columns: auto 1fr auto;
+      align-items: stretch; border-bottom: 1px solid var(--rule);
+      position: sticky; top: 0; z-index: 20; background: var(--bg);
     }
-    .topbar-brand { font-size: 14px; font-weight: 800; letter-spacing: -.3px; }
-    .topbar-brand em { color: var(--accent); font-style: normal; }
-    .topbar-sep { width: 1px; height: 16px; background: var(--border); }
-    .topbar-label { font-size: 11px; color: var(--text-dim); font-weight: 600; }
-    .topbar-spacer { flex: 1; }
-    .topbar-link {
-      font-size: 11px; font-weight: 700; color: var(--accent);
-      text-decoration: none; background: rgba(79,142,247,0.1);
-      border: 1px solid rgba(79,142,247,0.25); border-radius: 7px;
-      padding: 5px 12px; transition: background .15s;
+    .tb-logo { display: flex; align-items: center; gap: 10px; padding: 0 16px; border-right: 1px solid var(--rule); }
+    .tb-dot  { width: 8px; height: 8px; background: var(--signal); flex-shrink: 0; }
+    .tb-name { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--paper); }
+    .tb-ver  { font-family: var(--mono); font-size: 9px; color: var(--paper-dim); }
+    .tb-mid  { display: flex; align-items: center; padding: 0 18px; }
+    .tb-label { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--paper-dim); }
+    .tb-actions { display: flex; align-items: center; gap: 10px; padding: 0 16px; border-left: 1px solid var(--rule); }
+    .tb-link {
+      font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--paper-dim); text-decoration: none;
+      border: 1px solid var(--rule); padding: 4px 10px; transition: all .15s;
     }
-    .topbar-link:hover { background: rgba(79,142,247,0.18); }
+    .tb-link:hover { border-color: var(--paper-soft); color: var(--paper); }
 
     /* ── Page ── */
-    .page { max-width: 860px; margin: 0 auto; padding: 40px 28px 80px; display: flex; flex-direction: column; gap: 24px; }
+    .page { max-width: 900px; margin: 0 auto; padding: 32px 28px 80px; display: flex; flex-direction: column; gap: 0; }
 
     /* ── Project header ── */
-    .project-header { display: flex; align-items: flex-start; gap: 16px; }
-    .project-icon-wrap { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
-    .project-name { font-size: 26px; font-weight: 800; letter-spacing: -.6px; }
-    .project-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; font-weight: 500; }
+    .proj-head { padding: 28px 0 24px; border-bottom: 2px solid var(--paper); }
+    .proj-eyebrow { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--signal); margin-bottom: 10px; text-transform: uppercase; }
+    .proj-title-row { display: flex; align-items: flex-start; gap: 16px; }
+    .proj-icon { font-size: 32px; line-height: 1; flex-shrink: 0; margin-top: 3px; text-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    .proj-name { font-family: var(--sans); font-size: 38px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; color: var(--paper); }
+    .proj-meta { font-family: var(--mono); font-size: 10px; color: var(--paper-soft); letter-spacing: 1.4px; margin-top: 7px; text-transform: uppercase; }
 
-    /* ── Stat cards ── */
-    .stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
-    .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
-    .stat-value { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+    /* ── Stat strip ── */
+    .stat-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 20px; }
+    .stat-cell { background: var(--bg); padding: 14px 16px; }
+    .stat-label { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--paper-dim); margin-bottom: 6px; }
+    .stat-value { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--paper); letter-spacing: -0.5px; }
 
-    /* ── Report body ── */
-    .report-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; font-size: 14px; line-height: 1.75; }
-    .report-header { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    /* ── Report section ── */
+    .sec-rule { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--paper); padding-top: 8px; margin: 24px 0 16px; }
+    .sec-rule-no    { font-family: var(--mono); font-size: 10px; color: var(--signal); letter-spacing: 1.5px; font-weight: 700; }
+    .sec-rule-label { font-family: var(--mono); font-size: 10px; color: var(--paper); letter-spacing: 1.8px; font-weight: 700; text-transform: uppercase; }
+
+    .report-wrap { border: 1px solid var(--rule); background: var(--bg-alt); padding: 24px 28px; font-size: 14px; line-height: 1.75; }
+
     .empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; text-align: center; opacity: .4; }
     .empty-state .glyph { font-size: 36px; }
-    .empty-state p { font-size: 13px; color: var(--text-dim); }
+    .empty-state p { font-family: var(--mono); font-size: 11px; color: var(--paper-dim); letter-spacing: 1px; }
 
     /* ── Links ── */
-    .links { display: flex; flex-wrap: wrap; gap: 8px; }
+    .links-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 0 0; }
     .link-pill {
-      display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px;
-      border-radius: 20px; font-size: 11px; font-weight: 600;
-      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-      color: var(--text-mid); text-decoration: none; transition: all .15s;
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+      font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; background: transparent; border: 1px solid var(--rule);
+      color: var(--paper-dim); text-decoration: none; transition: all .15s;
     }
-    .link-pill:hover { background: rgba(79,142,247,0.12); border-color: rgba(79,142,247,0.3); color: var(--accent); }
-    .link-pill svg { width: 10px; height: 10px; fill: currentColor; }
+    .link-pill:hover { border-color: var(--paper-soft); color: var(--paper); }
+    .link-pill svg { width: 9px; height: 9px; fill: currentColor; flex-shrink: 0; }
 
     /* ── Footer ── */
-    .share-footer { text-align: center; font-size: 11px; color: var(--text-dim); padding-top: 12px; }
-    .share-footer a { color: var(--accent); text-decoration: none; }
+    .share-footer {
+      font-family: var(--mono); font-size: 9px; color: var(--paper-dim); letter-spacing: 1.2px;
+      text-transform: uppercase; padding: 20px 0 0; text-align: center;
+    }
+    .share-footer a { color: var(--signal); text-decoration: none; }
 
     /* ── Loading / error ── */
-    #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; gap: 12px; opacity: .4; }
-    #loading .spin { font-size: 28px; animation: spin .9s linear infinite; }
+    #loading {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 60vh; gap: 12px;
+    }
+    .load-spin { font-size: 24px; animation: spin .9s linear infinite; }
+    .load-label { font-family: var(--mono); font-size: 10px; color: var(--paper-dim); letter-spacing: 2px; text-transform: uppercase; }
     @keyframes spin { to { transform: rotate(360deg); } }
     #error-state { display: none; }
-    #content  { display: none; }
+    #content { display: none; }
 
-    /* ── Markdown styles ── */
-    .report-card h1,.report-card h2,.report-card h3 { margin: 16px 0 8px; font-weight: 700; line-height: 1.3; }
-    .report-card h1 { font-size: 20px; } .report-card h2 { font-size: 16px; } .report-card h3 { font-size: 14px; color: var(--accent); }
-    .report-card p { margin: 6px 0; }
-    .report-card ul,.report-card ol { padding-left: 22px; margin: 8px 0; }
-    .report-card li { margin: 4px 0; }
-    .report-card strong { font-weight: 700; }
-    .report-card em { font-style: italic; color: rgba(221,226,240,0.8); }
-    .report-card code { background: rgba(255,255,255,0.07); padding: 2px 6px; border-radius: 5px; font-size: 12.5px; font-family: 'Fira Code','Courier New',monospace; }
-    .report-card pre { background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 10px 0; overflow-x: auto; }
-    .report-card pre code { background: none; padding: 0; }
-    .report-card hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
-    .report-card a { color: var(--accent); text-decoration: none; }
-    .report-card a:hover { text-decoration: underline; }
-    .report-card table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
-    .report-card th { background: rgba(255,255,255,0.05); padding: 8px 12px; text-align: left; font-weight: 600; border: 1px solid var(--border); }
-    .report-card td { padding: 7px 12px; border: 1px solid var(--border); }
-    .report-card tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
-    .report-card blockquote { border-left: 3px solid var(--accent); background: rgba(79,142,247,0.06); padding: 8px 14px; margin: 8px 0; color: var(--text-mid); border-radius: 0 8px 8px 0; }
+    /* ── Markdown ── */
+    .report-wrap h1,.report-wrap h2,.report-wrap h3 { font-family: var(--sans); font-weight: 800; line-height: 1.3; margin: 20px 0 8px; }
+    .report-wrap h1 { font-size: 22px; letter-spacing: -.5px; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+    .report-wrap h2 { font-size: 17px; letter-spacing: -.3px; }
+    .report-wrap h3 { font-size: 14px; color: var(--signal); font-family: var(--mono); letter-spacing: .5px; text-transform: uppercase; }
+    .report-wrap p { margin: 8px 0; }
+    .report-wrap ul, .report-wrap ol { padding-left: 22px; margin: 8px 0; }
+    .report-wrap li { margin: 4px 0; }
+    .report-wrap strong { font-weight: 700; }
+    .report-wrap em { font-style: italic; color: var(--paper-soft); }
+    .report-wrap code {
+      background: var(--rule-soft); padding: 2px 6px; font-size: 12px;
+      font-family: var(--mono); color: var(--warn);
+    }
+    .report-wrap pre {
+      background: var(--bg-deep); border: 1px solid var(--rule);
+      padding: 14px 16px; margin: 12px 0; overflow-x: auto;
+    }
+    .report-wrap pre code { background: none; padding: 0; color: var(--paper-soft); }
+    .report-wrap hr { border: none; border-top: 1px solid var(--rule); margin: 16px 0; }
+    .report-wrap a { color: var(--signal); text-decoration: none; }
+    .report-wrap a:hover { text-decoration: underline; }
+    .report-wrap table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+    .report-wrap th {
+      background: var(--bg-deep); padding: 8px 12px; text-align: left;
+      font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--paper-dim); border: 1px solid var(--rule);
+    }
+    .report-wrap td { padding: 7px 12px; border: 1px solid var(--rule); color: var(--paper-soft); }
+    .report-wrap tr:nth-child(even) td { background: var(--rule-soft); }
+    .report-wrap blockquote {
+      border-left: 3px solid var(--signal); background: var(--signal-dim);
+      padding: 8px 14px; margin: 10px 0; color: var(--paper-soft);
+    }
+    .report-wrap img.md-img { max-width: 100%; max-height: 400px; object-fit: contain; display: block; margin: 10px 0; border: 1px solid var(--rule); }
 
-    /* Product card grid */
-    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 14px 0; }
-    .product-card { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s; }
-    .product-card:hover { border-color: rgba(255,255,255,0.14); }
-    .pc-img { width: 100%; height: 160px; object-fit: cover; display: block; background: rgba(255,255,255,0.04); }
-    .pc-name { font-size: 14px; font-weight: 700; padding: 12px 14px 4px; line-height: 1.3; }
-    .pc-line { font-size: 12px; color: var(--text-mid); padding: 2px 14px; line-height: 1.5; }
-    .pc-line strong { color: var(--text); font-size: 14px; }
-    .pc-link { display: block; margin: 10px 14px 14px; padding: 8px 14px; background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.3); border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--accent); text-decoration: none; text-align: center; transition: background .15s; }
-    .pc-link:hover { background: rgba(79,142,247,0.2); }
-    .md-img { max-width: 100%; max-height: 360px; border-radius: 10px; margin: 8px 0; object-fit: contain; display: block; }
+    /* ── Product cards ── */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; background: var(--rule); margin: 14px 0; border: 1px solid var(--rule); }
+    .product-card { background: var(--bg); overflow: hidden; display: flex; flex-direction: column; transition: background .1s; }
+    .product-card:hover { background: var(--bg-alt); }
+    .pc-img { width: 100%; height: 160px; object-fit: cover; display: block; background: var(--rule-soft); }
+    .pc-name { font-size: 14px; font-weight: 700; padding: 12px 14px 4px; line-height: 1.3; font-family: var(--sans); }
+    .pc-line { font-size: 12px; color: var(--paper-soft); padding: 2px 14px; line-height: 1.5; }
+    .pc-line strong { color: var(--paper); font-size: 14px; }
+    .pc-link {
+      display: block; margin: 10px 14px 14px; padding: 6px 12px;
+      border: 1px solid var(--rule); font-family: var(--mono); font-size: 10px;
+      font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--paper-dim); text-decoration: none; text-align: center; transition: all .15s;
+    }
+    .pc-link:hover { border-color: var(--paper-soft); color: var(--paper); }
+
     /* ── Responsive ── */
-    @media (max-width: 600px) {
-      .topbar { padding: 12px 16px; }
-      .page { padding: 24px 16px 60px; gap: 18px; }
-      .project-name { font-size: 20px; }
-      .project-icon-wrap { width: 46px; height: 46px; font-size: 22px; }
-      .stat-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    @media (max-width: 640px) {
+      .page { padding: 20px 16px 60px; }
+      .proj-name { font-size: 26px; }
+      .proj-icon { font-size: 24px; }
+      .report-wrap { padding: 16px; }
       .product-grid { grid-template-columns: 1fr; }
-      .report-card { padding: 18px 16px; }
     }
     @media (max-width: 400px) {
-      .stat-value { font-size: 18px; }
-      .topbar-link { display: none; }
+      .tb-actions { display: none; }
     }
   </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-brand">Nano<em>Claw</em></div>
-  <div class="topbar-sep"></div>
-  <div class="topbar-label">Shared Project</div>
-  <div class="topbar-spacer"></div>
-  <a class="topbar-link" href="/">Open Dashboard</a>
+<!-- ── Topbar ── -->
+<div id="topbar">
+  <div class="tb-logo">
+    <span class="tb-dot"></span>
+    <span class="tb-name">NanoClaw</span>
+    <span class="tb-ver">v3</span>
+  </div>
+  <div class="tb-mid">
+    <span class="tb-label">Shared Project</span>
+  </div>
+  <div class="tb-actions">
+    <a class="tb-link" href="/">Open Dashboard ↗</a>
+  </div>
 </div>
 
+<!-- ── Loading ── -->
 <div id="loading">
-  <div class="spin">⟳</div>
-  <div style="font-size:13px;font-weight:600">Loading…</div>
+  <div class="load-spin">⟳</div>
+  <div class="load-label">Loading…</div>
 </div>
 
+<!-- ── Error ── -->
 <div id="error-state" class="page">
-  <div style="text-align:center;padding:60px 20px;opacity:.5">
-    <div style="font-size:40px;margin-bottom:12px">🔍</div>
-    <div style="font-size:18px;font-weight:700">Project not found</div>
-    <div style="font-size:13px;color:var(--text-dim);margin-top:8px">This project may have been deleted or the link is invalid.</div>
+  <div style="text-align:center;padding:80px 20px">
+    <div style="font-size:40px;margin-bottom:14px">🔍</div>
+    <div style="font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--paper)">Project Not Found</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--paper-dim);margin-top:10px;letter-spacing:1px">This project may have been deleted or the link is invalid.</div>
   </div>
 </div>
 
+<!-- ── Content ── -->
 <div id="content" class="page">
-  <div class="project-header">
-    <div class="project-icon-wrap" id="share-icon"></div>
-    <div>
-      <div class="project-name" id="share-name"></div>
-      <div class="project-meta" id="share-meta"></div>
+
+  <!-- Header -->
+  <div class="proj-head">
+    <div class="proj-eyebrow">NanoClaw · Shared Project</div>
+    <div class="proj-title-row">
+      <div class="proj-icon" id="share-icon"></div>
+      <div>
+        <div class="proj-name" id="share-name"></div>
+        <div class="proj-meta" id="share-meta"></div>
+      </div>
     </div>
+    <div class="stat-strip" id="share-stats" style="display:none"></div>
   </div>
-  <div class="stat-cards" id="share-stats" style="display:none"></div>
-  <div class="report-card" id="share-body">
+
+  <!-- Report -->
+  <div class="sec-rule">
+    <span class="sec-rule-no">§01</span>
+    <span class="sec-rule-label">Full Report</span>
+  </div>
+  <div class="report-wrap" id="share-body">
     <div class="empty-state">
       <div class="glyph" id="share-empty-glyph">📋</div>
-      <p>No report available yet. Open the dashboard and hit "Get Latest" to generate one.</p>
+      <p>No report yet — open the dashboard and hit "Get Latest" to generate one.</p>
     </div>
   </div>
-  <div class="links" id="share-links" style="display:none"></div>
-  <div class="share-footer">Powered by <a href="/">NanoClaw</a> · <span id="share-updated"></span></div>
+
+  <!-- Links -->
+  <div class="links-wrap" id="share-links" style="display:none"></div>
+
+  <!-- Footer -->
+  <div class="share-footer">
+    Powered by <a href="/">NanoClaw</a> · <span id="share-updated"></span>
+  </div>
 </div>
 
 <script>
@@ -194,10 +270,10 @@ function renderMarkdown(raw) {
         const imgM  = line.match(/^!\[([^\]]*)\]\((https?:\/\/[^)]+)\)\s*$/);
         const h3M   = line.match(/^#{1,3}\s+(.+)$/);
         const linkM = line.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)\s*$/);
-        if (imgM)  cardHtml += `<img src="${imgM[2]}" alt="${escHtml(imgM[1])}" loading="lazy" class="pc-img" onerror="this.style.display='none'">`;
+        if (imgM)   cardHtml += `<img src="${imgM[2]}" alt="${escHtml(imgM[1])}" loading="lazy" class="pc-img" onerror="this.style.display='none'">`;
         else if (h3M)  cardHtml += `<div class="pc-name">${escHtml(h3M[1])}</div>`;
         else if (linkM) cardHtml += `<a href="${linkM[2]}" target="_blank" rel="noopener" class="pc-link">${escHtml(linkM[1])}</a>`;
-        else { let l = escHtml(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>'); if(l.trim()) cardHtml += `<div class="pc-line">${l}</div>`; }
+        else { let l = escHtml(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>'); if (l.trim()) cardHtml += `<div class="pc-line">${l}</div>`; }
       }
       return `<div class="product-card">${cardHtml}</div>`;
     }).join('');
@@ -211,15 +287,20 @@ function renderMarkdown(raw) {
   t = t.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/__(.+?)__/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
   t = t.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
   t = t.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
-    const rows = block.trim().split('\n').filter(r=>r.trim());
+    const rows = block.trim().split('\n').filter(r => r.trim());
     let html = '<div style="overflow-x:auto"><table>';
-    rows.forEach((row,i) => { if(/^\|[-| :]+\|$/.test(row.trim())) return; const cells=row.split('|').slice(1,-1).map(c=>c.trim()); const tag=i===0?'th':'td'; html+=`<tr>${cells.map(c=>`<${tag}>${c}</${tag}>`).join('')}</tr>`; });
-    return html+'</table></div>';
+    rows.forEach((row, i) => {
+      if (/^\|[-| :]+\|$/.test(row.trim())) return;
+      const cells = row.split('|').slice(1,-1).map(c => c.trim());
+      const tag = i === 0 ? 'th' : 'td';
+      html += `<tr>${cells.map(c => `<${tag}>${c}</${tag}>`).join('')}</tr>`;
+    });
+    return html + '</table></div>';
   });
   t = t.replace(/^[ \t]*[-*] (.+)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`).replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
   t = t.split(/\n{2,}/).map(block => {
-    block = block.trim(); if(!block) return '';
-    if(/^<(h[1-6]|ul|ol|pre|table|div|hr|blockquote)/.test(block)||block.includes('\x00')) return block;
+    block = block.trim(); if (!block) return '';
+    if (/^<(h[1-6]|ul|ol|pre|table|div|hr|blockquote)/.test(block) || block.includes('\x00')) return block;
     return `<p>${block.split('\n').map(l=>l.trim()).filter(Boolean).join('<br>')}</p>`;
   }).join('\n');
   return restore(t);
@@ -228,18 +309,19 @@ function renderMarkdown(raw) {
 async function init() {
   const key = location.pathname.split('/').pop();
   if (!key) { showError(); return; }
-
   try {
-    const res = await fetch(`/api/public/projects/${encodeURIComponent(key)}`, { headers: { 'ngrok-skip-browser-warning': '1' } });
+    const res = await fetch(`/api/public/projects/${encodeURIComponent(key)}`, {
+      headers: { 'ngrok-skip-browser-warning': '1' }
+    });
     if (!res.ok) { showError(); return; }
     const { project, report } = await res.json();
 
     document.title = `${project.name} · NanoClaw`;
     document.getElementById('share-icon').textContent = project.icon || '📋';
-    document.getElementById('share-icon').style.background = project.accentBg || 'rgba(79,142,247,0.12)';
     document.getElementById('share-empty-glyph').textContent = project.icon || '📋';
-    document.getElementById('share-name').textContent = project.name;
-    document.getElementById('share-name').style.color = project.nameColor || 'var(--accent)';
+    const nameEl = document.getElementById('share-name');
+    nameEl.textContent = project.name;
+    if (project.nameColor) nameEl.style.color = project.nameColor;
 
     const metaEl = document.getElementById('share-meta');
     if (report && report.meta) {
@@ -249,12 +331,12 @@ async function init() {
       metaEl.textContent = 'No report yet';
     }
 
-    // Stat cards
+    // Stat strip
     if (project.stats && project.stats.length > 0 && report && report.stats) {
       const statsEl = document.getElementById('share-stats');
       statsEl.style.display = 'grid';
       statsEl.innerHTML = project.stats.map(s => `
-        <div class="stat-card">
+        <div class="stat-cell">
           <div class="stat-label">${escHtml(s.label)}</div>
           <div class="stat-value">${escHtml(report.stats[s.id] || '—')}</div>
         </div>`).join('');
@@ -263,7 +345,7 @@ async function init() {
     // Report body
     const bodyEl = document.getElementById('share-body');
     if (report && report.text) {
-      bodyEl.innerHTML = `<div class="report-header">NanoClaw · Full Report</div>${renderMarkdown(report.text)}`;
+      bodyEl.innerHTML = renderMarkdown(report.text);
     }
 
     // Links
@@ -278,6 +360,7 @@ async function init() {
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'flex';
+    document.getElementById('content').style.flexDirection = 'column';
   } catch {
     showError();
   }
