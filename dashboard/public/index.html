@@ -81,6 +81,10 @@
     .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
     .sidebar-item.active { background: var(--accent-dim); color: var(--accent); }
     .sidebar-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .sidebar-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .proj-del { background: none; border: none; color: transparent; cursor: pointer; font-size: 12px; padding: 0 3px; border-radius: 4px; transition: color .15s; flex-shrink: 0; line-height: 1; }
+    .sidebar-item:hover .proj-del { color: var(--text-dim); }
+    .sidebar-item:hover .proj-del:hover { color: var(--danger, #f87171); }
     .sidebar-item-sub { font-size: 10px; color: var(--text-dim); margin-left: auto; font-weight: 500; }
     .sidebar-spacer { flex: 1; min-height: 12px; }
     .sidebar-footer { padding: 12px 14px; border-top: 1px solid var(--border); }
@@ -901,9 +905,24 @@ function renderSidebar() {
     item.className = 'sidebar-item' + (currentView === p.key ? ' active' : '');
     item.id = 'nav-' + p.key;
     item.setAttribute('onclick', `showView(${JSON.stringify(p.key)})`);
-    item.innerHTML = `<span class="sidebar-icon">${escHtml(p.icon || '📋')}</span> ${escHtml(p.name)}`;
+    item.innerHTML = `<span class="sidebar-icon">${escHtml(p.icon || '📋')}</span><span class="sidebar-item-label">${escHtml(p.name)}</span><button class="proj-del" onclick="deleteProject(${JSON.stringify(p.key)},event)" title="Delete project">✕</button>`;
     container.appendChild(item);
   });
+}
+
+async function deleteProject(key, e) {
+  e.stopPropagation();
+  const proj = projects.find(p => p.key === key);
+  if (!proj) return;
+  if (!confirm(`Delete "${proj.name}"?\n\nThis will permanently remove the project and its report.`)) return;
+  try {
+    await apiRequest('DELETE', `/api/projects/${key}`, null);
+    projects = projects.filter(p => p.key !== key);
+    renderSidebar();
+    if (currentView === key) showView('chat');
+  } catch (err) {
+    alert('Failed to delete project: ' + err.message);
+  }
 }
 
 // ── View router ───────────────────────────────────────────────────────────────
