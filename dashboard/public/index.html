@@ -118,7 +118,7 @@
     .kvr-v { font-family: var(--mono); font-size: 12px; color: var(--paper); font-weight: 600; }
 
     /* ═══════════════════════════════ OVERVIEW ═══════════════════════════════ */
-    #view-overview { overflow-y: auto; background: var(--bg); }
+    #view-overview { overflow-y: auto; overflow-x: hidden; background: var(--bg); }
     .ov-wrap { padding: 20px; }
     .ov-kpi-strip { display: flex; border: 1px solid var(--rule); }
     .ov-kpi { padding: 10px 18px; min-width: 100px; border-right: 1px solid var(--rule); }
@@ -560,9 +560,18 @@
       #chat-left { border-right: none; }
       #chat-drawer { width: 100%; border-left: none; border-top: 1px solid var(--rule); }
       /* ── Overview ── */
-      .ov-kpi-strip { flex-wrap: wrap; }
-      .ov-kpi-cell { min-width: calc(50% - 1px); }
+      #view-overview { overflow-x: hidden; }
+      .ov-wrap { padding: 12px; max-width: 100%; overflow-x: hidden; }
+      .ov-kpi-strip { flex-wrap: nowrap; width: 100%; border-left: none; border-right: none; }
+      .ov-kpi { flex: 1; min-width: 0; padding: 8px 10px; }
+      .ov-kpi-val { font-size: 18px; }
       .ov-grid { grid-template-columns: 1fr; }
+      .ov-hero-num { font-size: 36px !important; letter-spacing: -1px; }
+      .ov-hero { padding: 14px 16px; }
+      .ov-projects-table { table-layout: fixed; width: 100%; }
+      .ov-projects-table td, .ov-projects-table th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .gc, .gc-p { max-width: 100%; overflow-x: hidden; word-break: break-word; }
+      .grid-12 { overflow-x: hidden; }
       /* ── Analytics ── */
       .kpi-strip-6 { grid-template-columns: repeat(2, 1fr); }
       .analytics-split { grid-template-columns: 1fr; }
@@ -594,8 +603,10 @@
     @media (max-width: 480px) {
       .view-title { font-size: 18px; }
       .stat-cards { grid-template-columns: repeat(2, 1fr); }
-      .ov-kpi-strip { flex-wrap: wrap; }
-      .ov-kpi-cell { min-width: calc(50% - 1px); }
+      .ov-kpi-strip { flex-wrap: nowrap; }
+      .ov-kpi { flex: 1; min-width: 0; padding: 6px 8px; }
+      .ov-kpi-val { font-size: 15px; }
+      .ov-kpi-label { font-size: 8px; letter-spacing: 1px; }
       .kpi-strip-6 { grid-template-columns: repeat(2, 1fr); }
       .project-name { font-size: 18px !important; }
       .project-icon-wrap { font-size: 22px !important; width: 40px !important; height: 40px !important; }

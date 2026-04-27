@@ -334,7 +334,9 @@ export class WebChannel implements Channel {
           fs.cpSync(path.join(dataDir, 'threads'), userThreadsDir(username), {
             recursive: true,
           });
-        } catch { /* non-fatal */ }
+        } catch {
+          /* non-fatal */
+        }
       }
     };
 
@@ -559,7 +561,9 @@ export class WebChannel implements Channel {
     });
     app.put('/api/projects/:key', requireRestAuth, (req, res) => {
       const username = res.locals.dashUser as string;
-      const key = Array.isArray(req.params.key) ? req.params.key[0] : req.params.key;
+      const key = Array.isArray(req.params.key)
+        ? req.params.key[0]
+        : req.params.key;
       // Check own projects first
       const ownProjects = loadOwnProjects(username);
       const ownIdx = ownProjects.findIndex((p: any) => p.key === key);
@@ -577,7 +581,10 @@ export class WebChannel implements Channel {
       }
       const [owner, ownerProjects] = ownerEntry;
       const existing = ownerProjects.find((p: any) => p.key === key);
-      if (!Array.isArray(existing?.sharedWith) || !existing.sharedWith.includes(username)) {
+      if (
+        !Array.isArray(existing?.sharedWith) ||
+        !existing.sharedWith.includes(username)
+      ) {
         res.status(403).json({ error: 'Not authorized' });
         return;
       }
@@ -594,10 +601,15 @@ export class WebChannel implements Channel {
       const key = req.params.key;
       const ownProjects = loadOwnProjects(username);
       if (!ownProjects.some((p: any) => p.key === key)) {
-        res.status(403).json({ error: 'Only the project owner can delete a project' });
+        res
+          .status(403)
+          .json({ error: 'Only the project owner can delete a project' });
         return;
       }
-      saveOwnProjects(username, ownProjects.filter((p: any) => p.key !== key));
+      saveOwnProjects(
+        username,
+        ownProjects.filter((p: any) => p.key !== key),
+      );
       res.json({ ok: true });
     });
 
@@ -609,7 +621,9 @@ export class WebChannel implements Channel {
       const ownProjects = loadOwnProjects(username);
       const idx = ownProjects.findIndex((p: any) => p.key === key);
       if (idx < 0) {
-        res.status(403).json({ error: 'Only the project owner can share a project' });
+        res
+          .status(403)
+          .json({ error: 'Only the project owner can share a project' });
         return;
       }
       const sharedWith: string[] = Array.isArray(req.body?.sharedWith)
@@ -699,7 +713,10 @@ export class WebChannel implements Channel {
         fs.unlinkSync(userThreadFile(username, id));
       } catch {}
       const list = loadJson<ThreadMeta[]>(userThreadsIndexFile(username), []);
-      writeJson(userThreadsIndexFile(username), list.filter((x) => x.id !== id));
+      writeJson(
+        userThreadsIndexFile(username),
+        list.filter((x) => x.id !== id),
+      );
       res.json({ ok: true });
     });
 
@@ -891,7 +908,12 @@ export class WebChannel implements Channel {
           this.opts.onMessage(WEB_JID, msg);
 
           socket.emit('user_message', { text: content, timestamp: Date.now() });
-          appendUserChat(who, { role: 'user', who, text: content, ts: Date.now() });
+          appendUserChat(who, {
+            role: 'user',
+            who,
+            text: content,
+            ts: Date.now(),
+          });
           trackAnalytic('sent');
 
           logger.debug(
@@ -965,13 +987,22 @@ export class WebChannel implements Channel {
           let history: any[] = [];
           try {
             history = JSON.parse(fs.readFileSync(userChatPath, 'utf8'));
-          } catch { /* start fresh */ }
-          history.push({ role: 'assistant', who: 'NanoClaw', text: trimmed, ts });
+          } catch {
+            /* start fresh */
+          }
+          history.push({
+            role: 'assistant',
+            who: 'NanoClaw',
+            text: trimmed,
+            ts,
+          });
           fs.writeFileSync(
             userChatPath,
             JSON.stringify(history.slice(-CHAT_MAX_MSGS)),
           );
-        } catch { /* non-fatal per-user write failure */ }
+        } catch {
+          /* non-fatal per-user write failure */
+        }
       }
 
       const date = new Date().toISOString().slice(0, 10);
